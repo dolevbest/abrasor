@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
-import { User, AccessRequest, UserRole, UserStatus, UnitSystem } from '@/types';
+import { User, AccessRequest, UserRole, UserStatus, UnitSystem, Calculator } from '@/types';
+import { SavedCalculation } from '@/hooks/calculations-context';
 
 // Database schema interfaces
 export interface DbUser {
@@ -61,6 +62,35 @@ export interface DbEmailRecord {
   type: string;
   sent_at: string;
   status: string;
+}
+
+export interface DbCalculator {
+  id: string;
+  name: string;
+  short_name: string;
+  description: string;
+  categories: string; // JSON array
+  inputs: string; // JSON array
+  formula: string; // JSON object
+  result_unit_metric: string;
+  result_unit_imperial: string;
+  enabled: boolean;
+  usage_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbSavedCalculation {
+  id: string;
+  user_id: string;
+  calculator_id: string;
+  calculator_name: string;
+  calculator_short_name: string;
+  inputs: string; // JSON object
+  result: string; // JSON object
+  unit_system: string;
+  notes?: string;
+  created_at: string;
 }
 
 // Initialize database
@@ -169,15 +199,37 @@ function createTables() {
     )
   `);
   
+  // Calculators table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS calculators (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      short_name TEXT NOT NULL,
+      description TEXT,
+      categories TEXT NOT NULL,
+      inputs TEXT NOT NULL,
+      formula TEXT NOT NULL,
+      result_unit_metric TEXT,
+      result_unit_imperial TEXT,
+      enabled BOOLEAN NOT NULL DEFAULT 1,
+      usage_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  
   // Saved calculations table
   db.exec(`
     CREATE TABLE IF NOT EXISTS saved_calculations (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       calculator_id TEXT NOT NULL,
-      name TEXT NOT NULL,
+      calculator_name TEXT NOT NULL,
+      calculator_short_name TEXT NOT NULL,
       inputs TEXT NOT NULL,
-      results TEXT NOT NULL,
+      result TEXT NOT NULL,
+      unit_system TEXT NOT NULL CHECK (unit_system IN ('metric', 'imperial')),
+      notes TEXT,
       created_at TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     )
@@ -301,5 +353,63 @@ export function dbAccessRequestToAccessRequest(dbRequest: DbAccessRequest): Acce
     status: dbRequest.status,
     createdAt: new Date(dbRequest.created_at),
     requestDate: new Date(dbRequest.request_date)
+  };
+}
+
+export function dbCalculatorToCalculator(dbCalc: DbCalculator): Omit<Calculator, 'calculate'> {
+  return {
+    id: dbCalc.id,
+    name: dbCalc.name,
+    shortName: dbCalc.short_name,
+    description: dbCalc.description || '',
+    categories: JSON.parse(dbCalc.categories),
+    inputs: JSON.parse(dbCalc.inputs)
+  };
+}
+
+export function calculatorToDbCalculator(calc: Omit<Calculator, 'calculate'>, formula: any): DbCalculator {
+  return {
+    id: calc.id,
+    name: calc.name,
+    short_name: calc.shortName,
+    description: calc.description,
+    categories: JSON.stringify(calc.categories),
+    inputs: JSON.stringify(calc.inputs),
+    formula: JSON.stringify(formula),
+    result_unit_metric: '',
+    result_unit_imperial: '',
+    enabled: true,
+    usage_count: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+}
+
+export function dbSavedCalculationToSavedCalculation(dbCalc: DbSavedCalculation): SavedCalculation {
+  return {
+    id: dbCalc.id,
+    calculatorId: dbCalc.calculator_id,
+    calculatorName: dbCalc.calculator_name,
+    calculatorShortName: dbCalc.calculator_short_name,
+    inputs: JSON.parse(dbCalc.inputs),
+    result: JSON.parse(dbCalc.result),
+    unitSystem: dbCalc.unit_system as UnitSystem,
+    notes: dbCalc.notes,
+    savedAt: new Date(dbCalc.created_at)
+  };
+}
+
+export function savedCalculationToDbSavedCalculation(calc: SavedCalculation, userId: string): DbSavedCalculation {
+  return {
+    id: calc.id,
+    user_id: userId,
+    calculator_id: calc.calculatorId,
+    calculator_name: calc.calculatorName,
+    calculator_short_name: calc.calculatorShortName,
+    inputs: JSON.stringify(calc.inputs),
+    result: JSON.stringify(calc.result),
+    unit_system: calc.unitSystem,
+    notes: calc.notes,
+    created_at: calc.savedAt.toISOString()
   };
 }

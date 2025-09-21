@@ -9,6 +9,22 @@ import {
   rejectRequestProcedure,
   updateUserProcedure 
 } from "@/backend/trpc/routes/users/management/route";
+import {
+  getCalculatorsProcedure,
+  getCalculatorByIdProcedure,
+  trackUsageProcedure,
+  createCalculatorProcedure,
+  updateCalculatorProcedure,
+  deleteCalculatorProcedure,
+  getAllCalculatorsProcedure
+} from "@/backend/trpc/routes/calculators/management/route";
+import {
+  getSavedCalculationsProcedure,
+  saveCalculationProcedure,
+  deleteCalculationProcedure,
+  clearAllCalculationsProcedure,
+  getCalculationsByDateProcedure
+} from "@/backend/trpc/routes/calculations/saved/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -24,6 +40,22 @@ export const appRouter = createTRPCRouter({
     approveRequest: approveRequestProcedure,
     rejectRequest: rejectRequestProcedure,
     update: updateUserProcedure,
+  }),
+  calculators: createTRPCRouter({
+    getAll: getCalculatorsProcedure,
+    getById: getCalculatorByIdProcedure,
+    trackUsage: trackUsageProcedure,
+    create: createCalculatorProcedure,
+    update: updateCalculatorProcedure,
+    delete: deleteCalculatorProcedure,
+    getAllAdmin: getAllCalculatorsProcedure,
+  }),
+  calculations: createTRPCRouter({
+    getSaved: getSavedCalculationsProcedure,
+    save: saveCalculationProcedure,
+    delete: deleteCalculationProcedure,
+    clearAll: clearAllCalculationsProcedure,
+    getByDate: getCalculationsByDateProcedure,
   }),
 });
 
