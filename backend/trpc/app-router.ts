@@ -25,6 +25,17 @@ import {
   clearAllCalculationsProcedure,
   getCalculationsByDateProcedure
 } from "@/backend/trpc/routes/calculations/saved/route";
+import {
+  getNotificationsProcedure,
+  markNotificationReadProcedure,
+  deleteNotificationProcedure,
+  clearNotificationsProcedure,
+  createNotificationProcedure
+} from "@/backend/trpc/routes/settings/notifications/route";
+import {
+  getUserSettingsProcedure,
+  updateUserSettingsProcedure
+} from "@/backend/trpc/routes/settings/user-settings/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -56,6 +67,19 @@ export const appRouter = createTRPCRouter({
     delete: deleteCalculationProcedure,
     clearAll: clearAllCalculationsProcedure,
     getByDate: getCalculationsByDateProcedure,
+  }),
+  settings: createTRPCRouter({
+    notifications: createTRPCRouter({
+      getAll: getNotificationsProcedure,
+      markRead: markNotificationReadProcedure,
+      delete: deleteNotificationProcedure,
+      clearAll: clearNotificationsProcedure,
+      create: createNotificationProcedure,
+    }),
+    userSettings: createTRPCRouter({
+      get: getUserSettingsProcedure,
+      update: updateUserSettingsProcedure,
+    }),
   }),
 });
 

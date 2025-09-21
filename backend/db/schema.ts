@@ -93,6 +93,26 @@ export interface DbSavedCalculation {
   created_at: string;
 }
 
+export interface DbNotification {
+  id: string;
+  user_id?: string; // null for system-wide notifications
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  created_at: string;
+}
+
+export interface DbUserSettings {
+  user_id: string;
+  unit_preference: string;
+  theme_preference?: string;
+  colorblind_mode?: string;
+  font_size?: string;
+  notifications_enabled: boolean;
+  updated_at: string;
+}
+
 // Initialize database
 let db: Database.Database;
 
@@ -234,6 +254,34 @@ function createTables() {
       FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     )
   `);
+  
+  // Notifications table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('info', 'warning', 'error', 'success')),
+      read BOOLEAN NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    )
+  `);
+  
+  // User settings table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_settings (
+      user_id TEXT PRIMARY KEY,
+      unit_preference TEXT NOT NULL CHECK (unit_preference IN ('metric', 'imperial')),
+      theme_preference TEXT CHECK (theme_preference IN ('light', 'dark', 'system')),
+      colorblind_mode TEXT CHECK (colorblind_mode IN ('none', 'protanopia', 'deuteranopia', 'tritanopia')),
+      font_size TEXT CHECK (font_size IN ('small', 'medium', 'large', 'extra-large')),
+      notifications_enabled BOOLEAN NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    )
+  `);
 }
 
 function insertDefaultAdmin() {
@@ -287,6 +335,23 @@ function insertDefaultAdmin() {
         new Date().toISOString()
       );
     }
+  }
+  
+  // Insert default notifications
+  const welcomeNotificationExists = db.prepare('SELECT id FROM notifications WHERE id = ?').get('welcome-1');
+  if (!welcomeNotificationExists) {
+    db.prepare(`
+      INSERT INTO notifications (id, user_id, title, message, type, read, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      'welcome-1',
+      null, // System-wide notification
+      'Welcome to CGWise',
+      'Start exploring our grinding calculators',
+      'info',
+      false,
+      new Date().toISOString()
+    );
   }
 }
 
@@ -411,5 +476,28 @@ export function savedCalculationToDbSavedCalculation(calc: SavedCalculation, use
     unit_system: calc.unitSystem,
     notes: calc.notes,
     created_at: calc.savedAt.toISOString()
+  };
+}
+
+export function dbNotificationToNotification(dbNotification: DbNotification) {
+  return {
+    id: dbNotification.id,
+    title: dbNotification.title,
+    message: dbNotification.message,
+    type: dbNotification.type as 'info' | 'warning' | 'error' | 'success',
+    read: Boolean(dbNotification.read),
+    createdAt: new Date(dbNotification.created_at)
+  };
+}
+
+export function dbUserSettingsToUserSettings(dbSettings: DbUserSettings) {
+  return {
+    userId: dbSettings.user_id,
+    unitPreference: dbSettings.unit_preference as UnitSystem,
+    themePreference: dbSettings.theme_preference as 'light' | 'dark' | 'system' | undefined,
+    colorblindMode: dbSettings.colorblind_mode as 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia' | undefined,
+    fontSize: dbSettings.font_size as 'small' | 'medium' | 'large' | 'extra-large' | undefined,
+    notificationsEnabled: Boolean(dbSettings.notifications_enabled),
+    updatedAt: new Date(dbSettings.updated_at)
   };
 }
