@@ -1,12 +1,17 @@
 import { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
+import { initDatabase } from "@/backend/db/schema";
 
 // Context creation function
 export const createContext = async (opts: FetchCreateContextFnOptions) => {
+  // Initialize database on first request
+  const db = initDatabase();
+  
   return {
     req: opts.req,
-    // You can add more context items here like database connections, auth, etc.
+    db,
+    // You can add more context items here like auth, etc.
   };
 };
 
