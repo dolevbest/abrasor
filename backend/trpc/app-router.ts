@@ -36,6 +36,15 @@ import {
   getUserSettingsProcedure,
   updateUserSettingsProcedure
 } from "@/backend/trpc/routes/settings/user-settings/route";
+import {
+  createVisitorSessionProcedure,
+  getVisitorSessionProcedure,
+  saveVisitorCalculationProcedure,
+  getVisitorCalculationsProcedure,
+  clearVisitorCalculationsProcedure,
+  getVisitorSettingsProcedure,
+  cleanupOldVisitorSessionsProcedure
+} from "@/backend/trpc/routes/visitors/management/route";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -80,6 +89,15 @@ export const appRouter = createTRPCRouter({
       get: getUserSettingsProcedure,
       update: updateUserSettingsProcedure,
     }),
+  }),
+  visitors: createTRPCRouter({
+    createSession: createVisitorSessionProcedure,
+    getSession: getVisitorSessionProcedure,
+    saveCalculation: saveVisitorCalculationProcedure,
+    getCalculations: getVisitorCalculationsProcedure,
+    clearCalculations: clearVisitorCalculationsProcedure,
+    getSettings: getVisitorSettingsProcedure,
+    cleanupOldSessions: cleanupOldVisitorSessionsProcedure,
   }),
 });
 

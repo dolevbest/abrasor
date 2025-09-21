@@ -113,6 +113,24 @@ export interface DbUserSettings {
   updated_at: string;
 }
 
+export interface DbVisitorCalculation {
+  id: string;
+  visitor_id: string;
+  calculator_type: string;
+  inputs: string; // JSON object
+  results: string; // JSON object
+  unit_system: string;
+  timestamp: string;
+}
+
+export interface DbVisitorSession {
+  id: string;
+  calculation_count: number;
+  max_calculations: number;
+  created_at: string;
+  last_activity: string;
+}
+
 // Initialize database
 let db: Database.Database;
 
@@ -282,6 +300,30 @@ function createTables() {
       FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     )
   `);
+  
+  // Visitor calculations table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS visitor_calculations (
+      id TEXT PRIMARY KEY,
+      visitor_id TEXT NOT NULL,
+      calculator_type TEXT NOT NULL,
+      inputs TEXT NOT NULL,
+      results TEXT NOT NULL,
+      unit_system TEXT NOT NULL CHECK (unit_system IN ('metric', 'imperial')),
+      timestamp TEXT NOT NULL
+    )
+  `);
+  
+  // Visitor sessions table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS visitor_sessions (
+      id TEXT PRIMARY KEY,
+      calculation_count INTEGER NOT NULL DEFAULT 0,
+      max_calculations INTEGER NOT NULL DEFAULT 50,
+      created_at TEXT NOT NULL,
+      last_activity TEXT NOT NULL
+    )
+  `);
 }
 
 function insertDefaultAdmin() {
@@ -323,7 +365,8 @@ function insertDefaultAdmin() {
   const defaultSettings = [
     { key: 'maxLoginAttempts', value: '5' },
     { key: 'maintenanceMode', value: 'false' },
-    { key: 'guestModeEnabled', value: 'true' }
+    { key: 'guestModeEnabled', value: 'true' },
+    { key: 'maxGuestCalculations', value: '50' }
   ];
   
   for (const setting of defaultSettings) {
@@ -499,5 +542,27 @@ export function dbUserSettingsToUserSettings(dbSettings: DbUserSettings) {
     fontSize: dbSettings.font_size as 'small' | 'medium' | 'large' | 'extra-large' | undefined,
     notificationsEnabled: Boolean(dbSettings.notifications_enabled),
     updatedAt: new Date(dbSettings.updated_at)
+  };
+}
+
+export function dbVisitorCalculationToVisitorCalculation(dbCalc: DbVisitorCalculation) {
+  return {
+    id: dbCalc.id,
+    visitorId: dbCalc.visitor_id,
+    calculatorType: dbCalc.calculator_type,
+    inputs: JSON.parse(dbCalc.inputs),
+    results: JSON.parse(dbCalc.results),
+    unitSystem: dbCalc.unit_system as UnitSystem,
+    timestamp: new Date(dbCalc.timestamp)
+  };
+}
+
+export function dbVisitorSessionToVisitorSession(dbSession: DbVisitorSession) {
+  return {
+    id: dbSession.id,
+    calculationCount: dbSession.calculation_count,
+    maxCalculations: dbSession.max_calculations,
+    createdAt: new Date(dbSession.created_at),
+    lastActivity: new Date(dbSession.last_activity)
   };
 }
