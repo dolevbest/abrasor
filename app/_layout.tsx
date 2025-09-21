@@ -11,6 +11,7 @@ import { CalculatorsProvider } from "@/hooks/calculators-context";
 import { ThemeProvider, useTheme } from "@/hooks/theme-context";
 import { NotificationsProvider } from "@/hooks/notifications-context";
 import NotificationOverlay from "@/components/NotificationOverlay";
+import { trpc, trpcClient } from "@/lib/trpc";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -47,24 +48,26 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={styles.container}>
-        <AuthProvider>
-          <ThemeProvider>
-            <SettingsProvider>
-              <NotificationsProvider>
-                <CalculatorsProvider>
-                  <CalculationsProvider>
-                    <RootLayoutNav />
-                    <NotificationOverlay />
-                  </CalculationsProvider>
-                </CalculatorsProvider>
-              </NotificationsProvider>
-            </SettingsProvider>
-          </ThemeProvider>
-        </AuthProvider>
-      </GestureHandlerRootView>
-    </QueryClientProvider>
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <GestureHandlerRootView style={styles.container}>
+          <AuthProvider>
+            <ThemeProvider>
+              <SettingsProvider>
+                <NotificationsProvider>
+                  <CalculatorsProvider>
+                    <CalculationsProvider>
+                      <RootLayoutNav />
+                      <NotificationOverlay />
+                    </CalculationsProvider>
+                  </CalculatorsProvider>
+                </NotificationsProvider>
+              </SettingsProvider>
+            </ThemeProvider>
+          </AuthProvider>
+        </GestureHandlerRootView>
+      </QueryClientProvider>
+    </trpc.Provider>
   );
 }
 

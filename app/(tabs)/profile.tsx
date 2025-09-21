@@ -35,6 +35,7 @@ import { useTheme } from '@/hooks/theme-context';
 import { router } from 'expo-router';
 import AccessibilitySettings from '@/components/AccessibilitySettings';
 import * as ImagePicker from 'expo-image-picker';
+import { trpc } from '@/lib/trpc';
 
 export default function ProfileScreen() {
   const { user, logout, updateProfile, isGuest, upgradeFromGuest } = useAuth();
@@ -49,6 +50,9 @@ export default function ProfileScreen() {
   const [position, setPosition] = useState(user?.position || '');
   const [country, setCountry] = useState(user?.country || '');
   const [profileImage, setProfileImage] = useState(user?.profileImage || null);
+  
+  // Test tRPC backend
+  const hiMutation = trpc.example.hi.useMutation();
 
   useEffect(() => {
     if (user) {
@@ -182,6 +186,15 @@ export default function ProfileScreen() {
         }
       ]
     );
+  };
+  
+  const testBackend = async () => {
+    try {
+      const result = await hiMutation.mutateAsync({ name: 'Test User' });
+      Alert.alert('Backend Test', `Success! Response: ${result.hello} at ${result.date}`);
+    } catch (error) {
+      Alert.alert('Backend Test', `Error: ${error}`);
+    }
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -440,6 +453,24 @@ export default function ProfileScreen() {
                 <Text style={[styles.actionCardTitle, { color: theme.text }]}>Accessibility</Text>
                 <Text style={[styles.actionCardSubtitle, { color: theme.textSecondary }]}>
                   Colorblind support & font size settings
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={20} color={theme.textSecondary} />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.card, { backgroundColor: theme.surface }, Shadows.medium, styles.actionCard]}
+          onPress={testBackend}
+        >
+          <View style={styles.actionCardContent}>
+            <View style={styles.actionCardLeft}>
+              <Settings size={24} color={theme.primary} />
+              <View style={styles.actionCardText}>
+                <Text style={[styles.actionCardTitle, { color: theme.text }]}>Test Backend</Text>
+                <Text style={[styles.actionCardSubtitle, { color: theme.textSecondary }]}>
+                  Test tRPC connection
                 </Text>
               </View>
             </View>
