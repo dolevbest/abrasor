@@ -8,7 +8,6 @@ import { useNotifications } from "@/hooks/notifications-context";
 import { useTheme } from "@/hooks/theme-context";
 import { useMenu } from "@/hooks/menu-context";
 import UnitToggle from "@/components/UnitToggle";
-import AbrasorLogo from "@/components/AbrasorLogo";
 import SideMenu from "@/components/SideMenu";
 import { router } from "expo-router";
 
@@ -57,7 +56,19 @@ export default function TabLayout() {
         options={{
           headerTitle: () => (
             <View style={styles.headerTitleContainer}>
-              <AbrasorLogo size={28} />
+              <TouchableOpacity 
+                style={styles.headerNotificationButton} 
+                onPress={() => router.push('/notifications')}
+              >
+                <Bell size={24} color={theme.headerText} />
+                {unreadCount > 0 && (
+                  <View style={[styles.headerNotificationBadge, { backgroundColor: theme.error }]}>
+                    <Text style={[styles.headerNotificationBadgeText, { color: theme.primaryText }]}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
           ),
           tabBarIcon: ({ color }) => <Calculator size={24} color={color} />,
@@ -166,6 +177,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
+  },
+  headerNotificationButton: {
+    position: 'relative',
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerNotificationBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  headerNotificationBadgeText: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+    lineHeight: 12,
   },
   badge: {
     position: 'absolute',
