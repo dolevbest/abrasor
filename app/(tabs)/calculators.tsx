@@ -55,6 +55,7 @@ export default function CalculatorsScreen() {
   const handleManualRefresh = async () => {
     if (isRefreshing) return;
     
+    console.log('🔄 Manual refresh triggered');
     setIsRefreshing(true);
     try {
       if (reloadCalculators) {
@@ -62,7 +63,7 @@ export default function CalculatorsScreen() {
       }
       setHasUpdates(false);
       // Small delay to show the refresh animation
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 800));
     } catch (error) {
       console.error('Failed to refresh calculators:', error);
     } finally {
@@ -105,13 +106,18 @@ export default function CalculatorsScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        bounces={true}
+        alwaysBounceVertical={true}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={handleManualRefresh}
             tintColor={theme.primary}
             colors={[theme.primary]}
+            progressBackgroundColor={theme.surface}
             progressViewOffset={0}
+            title="Pull to refresh"
+            titleColor={theme.textSecondary}
           />
         }
       >
