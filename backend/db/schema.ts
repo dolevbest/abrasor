@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { User, AccessRequest, UserRole, UserStatus, UnitSystem, Calculator } from '@/types';
 import { SavedCalculation } from '@/hooks/calculations-context';
+import { calculators as defaultCalculators } from '@/utils/calculators';
 
 // Database schema interfaces
 export interface DbUser {
@@ -464,7 +465,7 @@ export function dbAccessRequestToAccessRequest(dbRequest: DbAccessRequest): Acce
   };
 }
 
-export function dbCalculatorToCalculator(dbCalc: DbCalculator): Omit<Calculator, 'calculate'> {
+export function dbCalculatorToCalculator(dbCalc: DbCalculator): Calculator {
   console.log('🔄 Converting DB calculator:', dbCalc.id, dbCalc.name);
   
   let categories: string[] = [];
@@ -566,13 +567,17 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Omit<Calculator,
     inputs = [];
   }
   
-  const result = {
+  // Find matching default calculator to get the calculate function
+  const defaultCalc = defaultCalculators.find(calc => calc.id === dbCalc.id);
+  
+  const result: Calculator = {
     id: dbCalc.id,
     name: dbCalc.name,
     shortName: dbCalc.short_name,
     description: dbCalc.description || '',
     categories,
-    inputs
+    inputs,
+    calculate: defaultCalc?.calculate || (() => ({ label: 'Result', value: null, unit: { metric: '', imperial: '' } }))
   };
   
   console.log('✅ Converted calculator:', result.id, 'with', categories.length, 'categories and', inputs.length, 'inputs');
