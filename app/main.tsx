@@ -369,23 +369,22 @@ export default function MainScreen() {
       </ScrollView>
 
       {/* Menu Overlay */}
-      {menuVisible && (
-        <Animated.View 
-          style={[
-            styles.overlay, 
-            { 
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              opacity: overlayAnimation 
-            }
-          ]}
-        >
-          <TouchableOpacity 
-            style={styles.overlayTouchable}
-            onPress={closeMenu}
-            activeOpacity={1}
-          />
-        </Animated.View>
-      )}
+      <Animated.View 
+        style={[
+          styles.overlay, 
+          { 
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: overlayAnimation,
+            pointerEvents: menuVisible ? 'auto' : 'none'
+          }
+        ]}
+      >
+        <TouchableOpacity 
+          style={styles.overlayTouchable}
+          onPress={closeMenu}
+          activeOpacity={1}
+        />
+      </Animated.View>
 
       {/* Side Menu */}
       <Animated.View 
