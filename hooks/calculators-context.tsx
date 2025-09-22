@@ -55,15 +55,28 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     data: calculatorsQuery.data
   });
   
+  // Log the raw error for debugging
+  if (calculatorsQuery.error) {
+    console.error('🚨 Full calculators query error:', calculatorsQuery.error);
+  }
+  
   // Track usage mutation
   const trackUsageMutation = trpc.calculators.trackUsage.useMutation();
 
   // Convert backend calculators to app format with current unit system
   const calculators = useMemo(() => {
     console.log('Processing calculators data:', calculatorsQuery.data);
+    console.log('Query error:', calculatorsQuery.error);
+    console.log('Query loading:', calculatorsQuery.isLoading);
+    
+    // If there's an error or no data, fall back to default calculators
+    if (calculatorsQuery.error || (!calculatorsQuery.isLoading && !calculatorsQuery.data)) {
+      console.log('Using default calculators as fallback');
+      return defaultCalculators;
+    }
     
     if (!calculatorsQuery.data) {
-      console.log('No calculators data available, returning empty array');
+      console.log('No calculators data available yet, returning empty array');
       return [];
     }
     
@@ -100,9 +113,11 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
       console.error('Error processing calculators data:', error);
       // Trigger cleanup of corrupted data
       clearCorruptedMutation.mutate();
-      return [];
+      // Fall back to default calculators
+      console.log('Falling back to default calculators due to processing error');
+      return defaultCalculators;
     }
-  }, [calculatorsQuery.data, currentUnitSystem, clearCorruptedMutation]);
+  }, [calculatorsQuery.data, calculatorsQuery.error, calculatorsQuery.isLoading, clearCorruptedMutation]);
 
   // Get unique categories
   const categories = useMemo(() => {

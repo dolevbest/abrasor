@@ -22,6 +22,19 @@ const baseUrl = getBaseUrl();
 const trpcUrl = `${baseUrl}/api/trpc`;
 console.log('🔗 tRPC URL:', trpcUrl);
 
+// Test the tRPC endpoint
+fetch(`${baseUrl}/api/`)
+  .then(response => {
+    console.log('🏥 API health check status:', response.status);
+    return response.json();
+  })
+  .then(data => {
+    console.log('🏥 API health check response:', data);
+  })
+  .catch(error => {
+    console.error('❌ API health check failed:', error);
+  });
+
 export const trpcClient = trpc.createClient({
   links: [
     httpLink({
@@ -52,6 +65,19 @@ export const trpcClient = trpc.createClient({
           console.error('Error getting auth token:', error);
         }
         return {};
+      },
+      fetch(url, options) {
+        console.log('🌐 tRPC fetch request:', url, options?.method || 'GET');
+        return fetch(url, options).then(response => {
+          console.log('📡 tRPC response status:', response.status, response.statusText);
+          if (!response.ok) {
+            console.error('❌ tRPC response not ok:', response.status, response.statusText);
+          }
+          return response;
+        }).catch(error => {
+          console.error('❌ tRPC fetch error:', error);
+          throw error;
+        });
       },
     }),
   ],
