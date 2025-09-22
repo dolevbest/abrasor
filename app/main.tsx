@@ -111,7 +111,6 @@ export default function MainScreen() {
         useNativeDriver: true,
         tension: 100,
         friction: 8,
-        mass: 1,
       }),
       Animated.timing(overlayAnimation, {
         toValue: overlayValue,
@@ -164,7 +163,6 @@ export default function MainScreen() {
             useNativeDriver: true,
             tension: 120,
             friction: 8,
-            mass: 0.8,
           }),
           Animated.timing(overlayAnimation, {
             toValue: 0.5,
@@ -182,7 +180,6 @@ export default function MainScreen() {
             useNativeDriver: true,
             tension: 120,
             friction: 8,
-            mass: 0.8,
           }),
           Animated.timing(overlayAnimation, {
             toValue: 0,
@@ -201,7 +198,6 @@ export default function MainScreen() {
             useNativeDriver: true,
             tension: 100,
             friction: 8,
-            mass: 1,
           }),
           Animated.timing(overlayAnimation, {
             toValue: overlayValue,
