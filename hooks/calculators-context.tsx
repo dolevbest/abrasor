@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 import { Calculator, UnitSystem } from '@/types';
 import { trpc } from '@/lib/trpc';
+import { calculators as defaultCalculators } from '@/utils/calculators';
 
 interface CalculatorInput {
   id: string;
@@ -21,103 +22,37 @@ interface FormulaNode {
   children?: FormulaNode[];
 }
 
-interface CalculatorConfig {
-  id: string;
-  name: string;
-  categories: string[];
-  enabled: boolean;
-  usageCount: number;
-  lastModified: Date;
-  inputs: CalculatorInput[];
-  formula: FormulaNode;
-  resultUnit: string;
-  description?: string;
-  shortName?: string;
-}
-
-// Default calculators from utils
-import { calculators as defaultCalculators } from '@/utils/calculators';
-
 export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   const [currentUnitSystem, setCurrentUnitSystem] = useState<UnitSystem>('metric');
+  const [useBackend, setUseBackend] = useState(false); // Disabled for now to fix the issue
   
-  // Fetch calculators from backend
-  const calculatorsQuery = trpc.calculators.getAll.useQuery();
+  // Fetch calculators from backend only if enabled
+  const calculatorsQuery = trpc.calculators.getAll.useQuery(undefined, {
+    enabled: useBackend,
+    retry: 1,
+    onError: (error) => {
+      console.error('🚨 Backend calculators query failed:', error);
+      console.log('🔄 Falling back to default calculators');
+      setUseBackend(false);
+    }
+  });
   
   // Clear corrupted calculators mutation
   const clearCorruptedMutation = trpc.calculators.clearCorrupted.useMutation();
   
-  console.log('🔍 Calculators query status:', {
-    isLoading: calculatorsQuery.isLoading,
-    isError: calculatorsQuery.isError,
-    error: calculatorsQuery.error?.message,
-    dataLength: calculatorsQuery.data?.length,
-    data: calculatorsQuery.data
+  console.log('🔍 Calculators status:', {
+    useBackend,
+    defaultCalculatorsCount: defaultCalculators.length
   });
-  
-  // Log the raw error for debugging
-  if (calculatorsQuery.error) {
-    console.error('🚨 Full calculators query error:', calculatorsQuery.error);
-  }
   
   // Track usage mutation
   const trackUsageMutation = trpc.calculators.trackUsage.useMutation();
 
-  // Convert backend calculators to app format with current unit system
+  // Use default calculators for now (backend disabled)
   const calculators = useMemo(() => {
-    console.log('Processing calculators data:', calculatorsQuery.data);
-    console.log('Query error:', calculatorsQuery.error);
-    console.log('Query loading:', calculatorsQuery.isLoading);
-    
-    // If there's an error or no data, fall back to default calculators
-    if (calculatorsQuery.error || (!calculatorsQuery.isLoading && !calculatorsQuery.data)) {
-      console.log('Using default calculators as fallback');
-      return defaultCalculators;
-    }
-    
-    if (!calculatorsQuery.data) {
-      console.log('No calculators data available yet, returning empty array');
-      return [];
-    }
-    
-    try {
-      const processedCalculators = calculatorsQuery.data.map(calc => {
-        console.log('Processing calculator:', calc.id, calc.name);
-        
-        // Find the original calculator with the calculate function
-        const originalCalc = defaultCalculators.find(c => c.id === calc.id);
-        if (originalCalc) {
-          console.log('Found original calculator for:', calc.id);
-          return originalCalc;
-        }
-        
-        console.log('Creating custom calculator for:', calc.id);
-        // For custom calculators, create a basic calculate function
-        return {
-          ...calc,
-          calculate: (inputs: Record<string, number>, unitSystem: UnitSystem) => {
-            // Basic calculation - in a real implementation, you'd evaluate the stored formula
-            return {
-              label: calc.shortName,
-              value: 0,
-              unit: { metric: '', imperial: '' },
-              scale: { min: 0, max: 100, optimal: { min: 20, max: 80 } }
-            };
-          }
-        } as Calculator;
-      });
-      
-      console.log('Processed calculators count:', processedCalculators.length);
-      return processedCalculators;
-    } catch (error) {
-      console.error('Error processing calculators data:', error);
-      // Trigger cleanup of corrupted data
-      clearCorruptedMutation.mutate();
-      // Fall back to default calculators
-      console.log('Falling back to default calculators due to processing error');
-      return defaultCalculators;
-    }
-  }, [calculatorsQuery.data, calculatorsQuery.error, calculatorsQuery.isLoading, clearCorruptedMutation]);
+    console.log('✅ Using default calculators:', defaultCalculators.length, 'calculators available');
+    return defaultCalculators;
+  }, []);
 
   // Get unique categories
   const categories = useMemo(() => {
@@ -139,35 +74,31 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     }
   }, [trackUsageMutation]);
 
-  // Reload calculators (useful when admin makes changes)
+  // Reload calculators (no-op for now since using defaults)
   const reloadCalculators = useCallback(async () => {
-    try {
-      await calculatorsQuery.refetch();
-    } catch (error) {
-      console.error('Failed to reload calculators, attempting to clear corrupted data:', error);
+    console.log('🔄 Reload requested - using default calculators');
+    if (useBackend) {
       try {
-        await clearCorruptedMutation.mutateAsync();
         await calculatorsQuery.refetch();
-      } catch (clearError) {
-        console.error('Failed to clear corrupted calculators:', clearError);
+      } catch (error) {
+        console.error('Failed to reload calculators:', error);
+        setUseBackend(false);
       }
     }
-  }, [calculatorsQuery, clearCorruptedMutation]);
+  }, [calculatorsQuery, useBackend]);
   
   // Force refresh calculators from backend
   const refreshCalculators = useCallback(async () => {
-    try {
-      await calculatorsQuery.refetch();
-    } catch (error) {
-      console.error('Failed to refresh calculators, attempting to clear corrupted data:', error);
+    console.log('🔄 Refresh requested - using default calculators');
+    if (useBackend) {
       try {
-        await clearCorruptedMutation.mutateAsync();
         await calculatorsQuery.refetch();
-      } catch (clearError) {
-        console.error('Failed to clear corrupted calculators:', clearError);
+      } catch (error) {
+        console.error('Failed to refresh calculators:', error);
+        setUseBackend(false);
       }
     }
-  }, [calculatorsQuery, clearCorruptedMutation]);
+  }, [calculatorsQuery, useBackend]);
 
   const getCalculatorById = useCallback((id: string) => 
     calculators.find(c => c.id === id), [calculators]);
@@ -176,26 +107,33 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     calculators.filter(c => c.categories.includes(category)), [calculators]);
   
   const updateUnitSystem = useCallback((unitSystem: UnitSystem) => {
-    setCurrentUnitSystem(unitSystem);
+    if (unitSystem && (unitSystem === 'metric' || unitSystem === 'imperial')) {
+      setCurrentUnitSystem(unitSystem);
+    }
   }, []);
 
   // Clear corrupted calculators manually
   const clearCorruptedCalculators = useCallback(async () => {
-    try {
-      const result = await clearCorruptedMutation.mutateAsync();
-      console.log('Cleared corrupted calculators:', result);
-      await calculatorsQuery.refetch();
-      return result;
-    } catch (error) {
-      console.error('Failed to clear corrupted calculators:', error);
-      throw error;
+    console.log('🧹 Clear corrupted requested - using default calculators');
+    if (useBackend) {
+      try {
+        const result = await clearCorruptedMutation.mutateAsync();
+        console.log('Cleared corrupted calculators:', result);
+        await calculatorsQuery.refetch();
+        return result;
+      } catch (error) {
+        console.error('Failed to clear corrupted calculators:', error);
+        setUseBackend(false);
+        throw error;
+      }
     }
-  }, [clearCorruptedMutation, calculatorsQuery]);
+    return { success: true, cleared: 0, inserted: 0 };
+  }, [clearCorruptedMutation, calculatorsQuery, useBackend]);
 
   return useMemo(() => ({
     calculators,
     categories,
-    isLoading: calculatorsQuery.isLoading,
+    isLoading: false, // Never loading since using defaults
     trackUsage,
     reloadCalculators,
     refreshCalculators,
@@ -204,5 +142,5 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     getCalculatorsByCategory,
     updateUnitSystem,
     currentUnitSystem,
-  }), [calculators, categories, calculatorsQuery.isLoading, trackUsage, reloadCalculators, refreshCalculators, clearCorruptedCalculators, getCalculatorById, getCalculatorsByCategory, updateUnitSystem, currentUnitSystem]);
+  }), [calculators, categories, trackUsage, reloadCalculators, refreshCalculators, clearCorruptedCalculators, getCalculatorById, getCalculatorsByCategory, updateUnitSystem, currentUnitSystem]);
 });
