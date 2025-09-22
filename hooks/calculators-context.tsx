@@ -1,39 +1,29 @@
 import { useState, useMemo, useCallback } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
-import { Calculator, UnitSystem } from '@/types';
+import { UnitSystem } from '@/types';
 import { trpc } from '@/lib/trpc';
 import { calculators as defaultCalculators } from '@/utils/calculators';
 
-interface CalculatorInput {
-  id: string;
-  name: string;
-  label: string;
-  unit: string;
-  type: 'number';
-  placeholder?: string;
-  defaultValue?: number;
-}
-
-interface FormulaNode {
-  id: string;
-  type: 'input' | 'number' | 'operator' | 'function';
-  value: string;
-  label?: string;
-  children?: FormulaNode[];
-}
-
 export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   const [currentUnitSystem, setCurrentUnitSystem] = useState<UnitSystem>('metric');
-  const [useBackend, setUseBackend] = useState(false); // Disabled for now to fix the issue
+  const [useBackend, setUseBackend] = useState(true); // Enable backend
+  const [backendFailed, setBackendFailed] = useState(false);
   
   // Fetch calculators from backend only if enabled
-  const calculatorsQuery = trpc.calculators.getAll.useQuery(undefined, {
+  const calculatorsQuery = trpc.calculators.getAll.useQuery({
     enabled: useBackend,
-    retry: 1,
-    onError: (error) => {
-      console.error('🚨 Backend calculators query failed:', error);
+    retry: 2,
+    retryDelay: 1000,
+    onError: (error: any) => {
+      if (error && typeof error === 'object') {
+        console.error('🚨 Backend calculators query failed:', error);
+      }
       console.log('🔄 Falling back to default calculators');
       setUseBackend(false);
+      setBackendFailed(true);
+    },
+    onSuccess: (data: any) => {
+      console.log('✅ Successfully fetched calculators from backend:', data?.length || 0);
     }
   });
   
@@ -48,11 +38,15 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   // Track usage mutation
   const trackUsageMutation = trpc.calculators.trackUsage.useMutation();
 
-  // Use default calculators for now (backend disabled)
+  // Use backend calculators if available, otherwise fall back to defaults
   const calculators = useMemo(() => {
+    if (useBackend && !backendFailed && calculatorsQuery.data && calculatorsQuery.data.length > 0) {
+      console.log('✅ Using backend calculators:', calculatorsQuery.data.length, 'calculators available');
+      return calculatorsQuery.data;
+    }
     console.log('✅ Using default calculators:', defaultCalculators.length, 'calculators available');
     return defaultCalculators;
-  }, []);
+  }, [useBackend, backendFailed, calculatorsQuery.data]);
 
   // Get unique categories
   const categories = useMemo(() => {
@@ -107,7 +101,7 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     calculators.filter(c => c.categories.includes(category)), [calculators]);
   
   const updateUnitSystem = useCallback((unitSystem: UnitSystem) => {
-    if (unitSystem && (unitSystem === 'metric' || unitSystem === 'imperial')) {
+    if (unitSystem && unitSystem.trim() && unitSystem.length <= 20 && (unitSystem === 'metric' || unitSystem === 'imperial')) {
       setCurrentUnitSystem(unitSystem);
     }
   }, []);
@@ -133,7 +127,8 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   return useMemo(() => ({
     calculators,
     categories,
-    isLoading: false, // Never loading since using defaults
+    isLoading: useBackend && !backendFailed ? calculatorsQuery.isLoading : false,
+    backendFailed,
     trackUsage,
     reloadCalculators,
     refreshCalculators,
@@ -142,5 +137,5 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     getCalculatorsByCategory,
     updateUnitSystem,
     currentUnitSystem,
-  }), [calculators, categories, trackUsage, reloadCalculators, refreshCalculators, clearCorruptedCalculators, getCalculatorById, getCalculatorsByCategory, updateUnitSystem, currentUnitSystem]);
+  }), [calculators, categories, trackUsage, reloadCalculators, refreshCalculators, clearCorruptedCalculators, getCalculatorById, getCalculatorsByCategory, updateUnitSystem, currentUnitSystem, useBackend, backendFailed, calculatorsQuery.isLoading]);
 });

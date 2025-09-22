@@ -68,11 +68,27 @@ export const trpcClient = trpc.createClient({
       },
       fetch(url, options) {
         console.log('🌐 tRPC fetch request:', url, options?.method || 'GET');
-        return fetch(url, options).then(response => {
+        return fetch(url, options).then(async response => {
           console.log('📡 tRPC response status:', response.status, response.statusText);
+          
           if (!response.ok) {
             console.error('❌ tRPC response not ok:', response.status, response.statusText);
+            
+            // Try to get the response text to see what's being returned
+            try {
+              const responseText = await response.clone().text();
+              console.error('❌ Response body:', responseText.substring(0, 500));
+              
+              // Check if it's HTML (error page)
+              if (responseText.trim().startsWith('<')) {
+                console.error('❌ Server returned HTML instead of JSON - likely a routing or CORS issue');
+                throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
+              }
+            } catch (textError) {
+              console.error('❌ Could not read response text:', textError);
+            }
           }
+          
           return response;
         }).catch(error => {
           console.error('❌ tRPC fetch error:', error);

@@ -18,7 +18,7 @@ import { ThemeSelector } from '@/components/ThemeSelector';
 import { useSettings } from '@/hooks/settings-context';
 export default function CalculatorsScreen() {
   const { theme } = useTheme();
-  const { calculators, categories, isLoading, reloadCalculators, updateUnitSystem, clearCorruptedCalculators } = useCalculators();
+  const { calculators, categories, isLoading, reloadCalculators, updateUnitSystem, clearCorruptedCalculators, backendFailed } = useCalculators();
   const { unitSystem } = useSettings();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -236,17 +236,24 @@ export default function CalculatorsScreen() {
                 : 'Try adjusting your search or filters'}
             </Text>
             {calculators.length === 0 && (
-              <TouchableOpacity
-                style={[styles.clearCorruptedButton, { backgroundColor: theme.error, marginTop: 16 }]}
-                onPress={handleClearCorrupted}
-                disabled={isClearing}
-              >
-                {isClearing ? (
-                  <ActivityIndicator size="small" color={theme.primaryText} />
-                ) : (
-                  <Text style={[styles.clearButtonText, { color: theme.primaryText }]}>Clear Corrupted Data</Text>
+              <>
+                {backendFailed && (
+                  <Text style={[styles.errorText, { color: theme.error, fontSize: theme.fontSizes.small, marginTop: 8 }]}>
+                    Backend connection failed. Using offline mode.
+                  </Text>
                 )}
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.clearCorruptedButton, { backgroundColor: theme.error, marginTop: 16 }]}
+                  onPress={handleClearCorrupted}
+                  disabled={isClearing}
+                >
+                  {isClearing ? (
+                    <ActivityIndicator size="small" color={theme.primaryText} />
+                  ) : (
+                    <Text style={[styles.clearButtonText, { color: theme.primaryText }]}>Clear Corrupted Data</Text>
+                  )}
+                </TouchableOpacity>
+              </>
             )}
           </View>
         )}
@@ -403,5 +410,9 @@ const styles = StyleSheet.create({
   clearButtonText: {
     fontWeight: '600' as const,
     fontSize: 14,
+  },
+  errorText: {
+    textAlign: 'center' as const,
+    fontWeight: '500' as const,
   },
 });
