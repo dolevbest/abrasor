@@ -4,6 +4,18 @@ import type { AppRouter } from "@/backend/trpc/app-router";
 import superjson from "superjson";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Utility to safely clear corrupted AsyncStorage data
+const clearCorruptedData = async () => {
+  try {
+    console.log('🧹 Clearing potentially corrupted AsyncStorage data...');
+    const keys = ['user', 'rememberMe', 'settings', 'calculations', 'notifications'];
+    await AsyncStorage.multiRemove(keys);
+    console.log('✅ Cleared AsyncStorage data');
+  } catch (error) {
+    console.error('❌ Error clearing AsyncStorage:', error);
+  }
+};
+
 export const trpc = createTRPCReact<AppRouter>();
 
 const getBaseUrl = () => {
@@ -63,9 +75,8 @@ export const trpcClient = trpc.createClient({
               }
             } catch (parseError) {
               console.error('Failed to parse stored user for auth:', parseError);
-              // Clear corrupted data
-              await AsyncStorage.removeItem('user');
-              await AsyncStorage.removeItem('rememberMe');
+              // Clear all potentially corrupted data
+              await clearCorruptedData();
             }
           }
         } catch (error) {
@@ -134,9 +145,11 @@ export const trpcClient = trpc.createClient({
                 console.error('❌ Invalid JSON response:', responseText.substring(0, 500));
                 
                 // Check for specific JSON parse error patterns
-                if (responseText.includes('Unexpected character: o')) {
-                  console.error('❌ Detected "Unexpected character: o" error - likely corrupted data in database');
-                  throw new Error('JSON Parse Error: Corrupted data detected. Please clear corrupted data and try again.');
+                if (responseText.includes('Unexpected character: o') || responseText.includes('Unexpected character')) {
+                  console.error('❌ Detected JSON parse error - likely corrupted data');
+                  // Clear corrupted AsyncStorage data
+                  await clearCorruptedData();
+                  throw new Error('JSON Parse Error: Corrupted data detected and cleared. Please try again.');
                 }
                 
                 throw new Error(`Invalid JSON response: ${jsonError}`);

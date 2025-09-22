@@ -13,7 +13,7 @@ import {
   Image,
   Easing,
 } from 'react-native';
-import { Search, Settings, RefreshCw, X, Menu, Bell, User, Shield, Calculator, LogOut, UserPlus } from 'lucide-react-native';
+import { Search, Settings, RefreshCw, X, Menu, Bell, User, Shield, Calculator, LogOut, UserPlus, TestTube } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
@@ -27,6 +27,9 @@ import { useNotifications } from '@/hooks/notifications-context';
 import AbrasorLogo from '@/components/AbrasorLogo';
 import UnitToggle from '@/components/UnitToggle';
 import GuestUpgradeForm from '@/components/GuestUpgradeForm';
+import { trpc } from '@/lib/trpc';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
 
 
 
@@ -45,6 +48,7 @@ export default function MainScreen() {
   const [hasUpdates, setHasUpdates] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [showUpgradeForm, setShowUpgradeForm] = useState(false);
+  const [showDebugButtons, setShowDebugButtons] = useState(false);
   const menuAnimation = useState(new Animated.Value(-MENU_WIDTH))[0];
   const overlayAnimation = useState(new Animated.Value(0))[0];
 
@@ -156,6 +160,47 @@ export default function MainScreen() {
   const handleUpgradeSuccess = async () => {
     setShowUpgradeForm(false);
     await handleLogout();
+  };
+
+  const testBackend = async () => {
+    try {
+      console.log('🧪 Testing backend connection...');
+      const result = await trpc.example.hi.mutate({ name: 'Test' });
+      console.log('✅ Backend test result:', result);
+      Alert.alert('Backend Test', `Success! Response: ${JSON.stringify(result)}`);
+    } catch (error) {
+      console.error('❌ Backend test failed:', error);
+      Alert.alert('Backend Test', `Error: ${error}`);
+    }
+  };
+
+  const clearCorruptedData = async () => {
+    try {
+      console.log('🧹 Clearing corrupted data...');
+      const result = await trpc.calculators.clearCorrupted.mutate();
+      console.log('✅ Clear corrupted result:', result);
+      Alert.alert('Clear Corrupted Data', `Success! ${result.message || 'Data cleared'}`);
+      // Refresh calculators after clearing
+      if (reloadCalculators) {
+        await reloadCalculators();
+      }
+    } catch (error) {
+      console.error('❌ Clear corrupted failed:', error);
+      Alert.alert('Clear Corrupted Data', `Error: ${error}`);
+    }
+  };
+
+  const clearAsyncStorage = async () => {
+    try {
+      console.log('🧹 Clearing AsyncStorage...');
+      const keys = ['user', 'rememberMe', 'settings', 'calculations', 'notifications'];
+      await AsyncStorage.multiRemove(keys);
+      console.log('✅ AsyncStorage cleared');
+      Alert.alert('Clear AsyncStorage', 'AsyncStorage cleared successfully!');
+    } catch (error) {
+      console.error('❌ Clear AsyncStorage failed:', error);
+      Alert.alert('Clear AsyncStorage', `Error: ${error}`);
+    }
   };
 
   const panResponder = PanResponder.create({
@@ -328,6 +373,12 @@ export default function MainScreen() {
             >
               <Settings size={20} color={theme.text} />
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.themeToggle, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              onPress={() => setShowDebugButtons(!showDebugButtons)}
+            >
+              <TestTube size={20} color={theme.text} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -335,6 +386,35 @@ export default function MainScreen() {
         {showThemeSelector && (
           <View style={styles.themeSelectorContainer}>
             <ThemeSelector />
+          </View>
+        )}
+
+        {/* Debug Buttons */}
+        {showDebugButtons && (
+          <View style={styles.debugContainer}>
+            <Text style={[styles.debugTitle, { color: theme.text }]}>Debug Tools</Text>
+            <View style={styles.debugButtons}>
+              <TouchableOpacity 
+                style={[styles.debugButton, { backgroundColor: theme.primary }]} 
+                onPress={testBackend}
+              >
+                <Text style={[styles.debugButtonText, { color: theme.primaryText }]}>Test Backend</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.debugButton, { backgroundColor: theme.error }]} 
+                onPress={clearCorruptedData}
+              >
+                <Text style={[styles.debugButtonText, { color: theme.primaryText }]}>Clear Corrupted Data</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.debugButton, { backgroundColor: theme.warning || '#F59E0B' }]} 
+                onPress={clearAsyncStorage}
+              >
+                <Text style={[styles.debugButtonText, { color: theme.primaryText }]}>Clear AsyncStorage</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -903,6 +983,28 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  debugContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  debugTitle: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+    marginBottom: 12,
+  },
+  debugButtons: {
+    gap: 8,
+  },
+  debugButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  debugButtonText: {
+    fontSize: 14,
     fontWeight: '600' as const,
   },
 });
