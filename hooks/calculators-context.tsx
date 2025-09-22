@@ -15,12 +15,19 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     retry: 2,
     retryDelay: 1000,
     onError: (error: any) => {
-      if (error && typeof error === 'object') {
-        console.error('🚨 Backend calculators query failed:', JSON.stringify(error));
+      console.error('🚨 Backend calculators query failed:', error);
+      
+      // Check if it's a JSON parse error
+      const errorMessage = error?.message || '';
+      if (errorMessage.includes('JSON Parse error') || errorMessage.includes('Unexpected character')) {
+        console.log('🧹 Detected JSON parse error, attempting to clear corrupted data...');
+        // Trigger clear corrupted calculators
+        clearCorruptedMutation.mutate();
+      } else {
+        console.log('🔄 Falling back to default calculators');
+        setUseBackend(false);
+        setBackendFailed(true);
       }
-      console.log('🔄 Falling back to default calculators');
-      setUseBackend(false);
-      setBackendFailed(true);
     },
     onSuccess: (data: any) => {
       console.log('✅ Successfully fetched calculators from backend:', data?.length || 0);
@@ -31,7 +38,19 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   });
   
   // Clear corrupted calculators mutation
-  const clearCorruptedMutation = trpc.calculators.clearCorrupted.useMutation();
+  const clearCorruptedMutation = trpc.calculators.clearCorrupted.useMutation({
+    onSuccess: (result) => {
+      console.log('✅ Successfully cleared corrupted calculators:', result);
+      // Refetch calculators after clearing
+      calculatorsQuery.refetch();
+    },
+    onError: (error) => {
+      console.error('❌ Failed to clear corrupted calculators:', error);
+      // Fall back to default calculators if clearing fails
+      setUseBackend(false);
+      setBackendFailed(true);
+    }
+  });
   
   console.log('🔍 Calculators status:', {
     useBackend,
