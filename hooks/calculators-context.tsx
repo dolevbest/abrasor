@@ -16,7 +16,7 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     retryDelay: 1000,
     onError: (error: any) => {
       if (error && typeof error === 'object') {
-        console.error('🚨 Backend calculators query failed:', error);
+        console.error('🚨 Backend calculators query failed:', JSON.stringify(error));
       }
       console.log('🔄 Falling back to default calculators');
       setUseBackend(false);
@@ -24,6 +24,9 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     },
     onSuccess: (data: any) => {
       console.log('✅ Successfully fetched calculators from backend:', data?.length || 0);
+      if (data && data.length > 0) {
+        setBackendFailed(false);
+      }
     }
   });
   
@@ -42,7 +45,14 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   const calculators = useMemo(() => {
     if (useBackend && !backendFailed && calculatorsQuery.data && calculatorsQuery.data.length > 0) {
       console.log('✅ Using backend calculators:', calculatorsQuery.data.length, 'calculators available');
-      return calculatorsQuery.data;
+      // Merge with default calculators to ensure we have the calculate functions
+      return calculatorsQuery.data.map(backendCalc => {
+        const defaultCalc = defaultCalculators.find(dc => dc.id === backendCalc.id);
+        if (defaultCalc) {
+          return { ...backendCalc, calculate: defaultCalc.calculate };
+        }
+        return backendCalc;
+      }).filter(calc => calc.calculate); // Only return calculators with calculate functions
     }
     console.log('✅ Using default calculators:', defaultCalculators.length, 'calculators available');
     return defaultCalculators;

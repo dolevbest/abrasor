@@ -476,10 +476,25 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Omit<Calculator,
       if (Array.isArray(dbCalc.categories)) {
         categories = dbCalc.categories;
       } else if (typeof dbCalc.categories === 'string') {
-        // Validate JSON before parsing
+        // Clean and validate JSON before parsing
         const trimmed = dbCalc.categories.trim();
-        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-          categories = JSON.parse(trimmed);
+        // Remove any non-printable characters and fix common issues
+        const cleaned = trimmed.replace(/[\x00-\x1F\x7F-\x9F]/g, '').replace(/\\n/g, '').replace(/\\r/g, '');
+        
+        if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+          try {
+            categories = JSON.parse(cleaned);
+          } catch {
+            console.warn('⚠️ JSON parse failed for categories, trying to extract array elements:', cleaned);
+            // Try to extract array elements manually
+            const match = cleaned.match(/\[([^\]]+)\]/);
+            if (match) {
+              const elements = match[1].split(',').map(s => s.trim().replace(/["']/g, ''));
+              categories = elements.filter(e => e.length > 0);
+            } else {
+              categories = [];
+            }
+          }
         } else {
           console.warn('⚠️ Invalid categories JSON format for calculator', dbCalc.id, ':', dbCalc.categories);
           categories = [];
@@ -499,10 +514,18 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Omit<Calculator,
       if (Array.isArray(dbCalc.inputs)) {
         inputs = dbCalc.inputs;
       } else if (typeof dbCalc.inputs === 'string') {
-        // Validate JSON before parsing
+        // Clean and validate JSON before parsing
         const trimmed = dbCalc.inputs.trim();
-        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-          inputs = JSON.parse(trimmed);
+        // Remove any non-printable characters and fix common issues
+        const cleaned = trimmed.replace(/[\x00-\x1F\x7F-\x9F]/g, '').replace(/\\n/g, '').replace(/\\r/g, '');
+        
+        if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+          try {
+            inputs = JSON.parse(cleaned);
+          } catch {
+            console.warn('⚠️ JSON parse failed for inputs, using empty array');
+            inputs = [];
+          }
         } else {
           console.warn('⚠️ Invalid inputs JSON format for calculator', dbCalc.id, ':', dbCalc.inputs);
           inputs = [];
