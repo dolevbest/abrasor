@@ -61,11 +61,17 @@ export const [CalculationsProvider, useCalculations] = createContextHook<Calcula
     try {
       const stored = await AsyncStorage.getItem('guestCalculations');
       if (stored) {
-        const calculations = JSON.parse(stored);
-        setGuestCalculations(calculations.map((calc: any) => ({
-          ...calc,
-          savedAt: new Date(calc.savedAt)
-        })));
+        try {
+          const calculations = JSON.parse(stored);
+          setGuestCalculations(calculations.map((calc: any) => ({
+            ...calc,
+            savedAt: new Date(calc.savedAt)
+          })));
+        } catch (error) {
+          console.error('Failed to parse guest calculations:', error);
+          await AsyncStorage.removeItem('guestCalculations');
+          setGuestCalculations([]);
+        }
       }
     } catch (error) {
       console.error('Failed to load guest calculations:', error);

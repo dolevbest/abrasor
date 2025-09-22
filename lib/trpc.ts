@@ -26,10 +26,16 @@ export const trpcClient = trpc.createClient({
         try {
           const storedUser = await AsyncStorage.getItem('user');
           if (storedUser) {
-            const user = JSON.parse(storedUser);
-            return {
-              authorization: `Bearer ${user.id}`,
-            };
+            try {
+              const user = JSON.parse(storedUser);
+              return {
+                authorization: `Bearer ${user.id}`,
+              };
+            } catch (parseError) {
+              console.error('Failed to parse stored user for auth:', parseError);
+              // Clear corrupted data
+              await AsyncStorage.removeItem('user');
+            }
           }
         } catch (error) {
           console.error('Error getting auth token:', error);

@@ -51,10 +51,20 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       
       if (rememberMeEnabled === 'true' && storedUser) {
         // Auto-login if remember me was enabled
-        setUser(JSON.parse(storedUser));
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch (error) {
+          console.error('Failed to parse stored user data:', error);
+          await AsyncStorage.removeItem('user');
+        }
       } else if (storedUser && rememberMeEnabled !== 'false') {
         // For backward compatibility, keep user logged in if rememberMe is not explicitly false
-        setUser(JSON.parse(storedUser));
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch (error) {
+          console.error('Failed to parse stored user data:', error);
+          await AsyncStorage.removeItem('user');
+        }
       } else if (guestMode === 'true') {
         setIsGuest(true);
       } else {
@@ -112,7 +122,13 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       
       // Store email in mock email system
       const emails = await AsyncStorage.getItem('sentEmails');
-      const sentEmails = emails ? JSON.parse(emails) : [];
+      let sentEmails = [];
+      try {
+        sentEmails = emails ? JSON.parse(emails) : [];
+      } catch (error) {
+        console.error('Failed to parse sent emails:', error);
+        sentEmails = [];
+      }
       
       const emailRecord = {
         id: Date.now().toString(),
@@ -130,7 +146,13 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       
       // Add to system logs
       const logs = await AsyncStorage.getItem('systemLogs');
-      const systemLogs = logs ? JSON.parse(logs) : [];
+      let systemLogs = [];
+      try {
+        systemLogs = logs ? JSON.parse(logs) : [];
+      } catch (error) {
+        console.error('Failed to parse system logs:', error);
+        systemLogs = [];
+      }
       systemLogs.unshift({
         id: Date.now().toString(),
         type: 'info',

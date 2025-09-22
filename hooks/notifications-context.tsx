@@ -59,8 +59,14 @@ export const [NotificationsProvider, useNotifications] = createContextHook<{
     try {
       const stored = await AsyncStorage.getItem('userNotifications');
       if (stored) {
-        const parsed = JSON.parse(stored);
-        setNotifications(parsed);
+        try {
+          const parsed = JSON.parse(stored);
+          setNotifications(parsed);
+        } catch (error) {
+          console.error('Failed to parse user notifications:', error);
+          await AsyncStorage.removeItem('userNotifications');
+          setNotifications([]);
+        }
       }
     } catch (error) {
       console.error('Failed to load notifications:', error);
@@ -161,7 +167,14 @@ export const [NotificationsProvider, useNotifications] = createContextHook<{
       try {
         const broadcast = await AsyncStorage.getItem('broadcastNotification');
         if (broadcast) {
-          const notification = JSON.parse(broadcast);
+          let notification;
+          try {
+            notification = JSON.parse(broadcast);
+          } catch (error) {
+            console.error('Failed to parse broadcast notification:', error);
+            await AsyncStorage.removeItem('broadcastNotification');
+            return;
+          }
           const notificationKey = `${notification.createdAt}-${notification.title}`;
           
           // Check if this is a new broadcast

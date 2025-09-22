@@ -61,7 +61,7 @@ export const [SettingsProvider, useSettings] = createContextHook<SettingsState>(
     } else {
       loadNotifications();
     }
-  }, [user, loadSettings]);
+  }, [user]);
   
   useEffect(() => {
     if (notificationsQuery.data) {
@@ -94,7 +94,13 @@ export const [SettingsProvider, useSettings] = createContextHook<SettingsState>(
     try {
       const stored = await AsyncStorage.getItem('notifications');
       if (stored) {
-        setNotifications(JSON.parse(stored));
+        try {
+          setNotifications(JSON.parse(stored));
+        } catch (error) {
+          console.error('Failed to parse stored notifications:', error);
+          await AsyncStorage.removeItem('notifications');
+          setNotifications([]);
+        }
       } else {
         // Mock notifications
         const mockNotifications: Notification[] = [
