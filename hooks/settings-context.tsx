@@ -81,7 +81,7 @@ export const [SettingsProvider, useSettings] = createContextHook<SettingsState>(
         setUnitSystem(user.unitPreference);
       } else {
         const stored = await AsyncStorage.getItem('unitSystem');
-        if (stored) {
+        if (stored && stored.trim() && (stored === 'metric' || stored === 'imperial')) {
           setUnitSystem(stored as UnitSystem);
         }
       }
@@ -93,9 +93,14 @@ export const [SettingsProvider, useSettings] = createContextHook<SettingsState>(
   const loadNotifications = async () => {
     try {
       const stored = await AsyncStorage.getItem('notifications');
-      if (stored) {
+      if (stored && stored.trim()) {
         try {
-          setNotifications(JSON.parse(stored));
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setNotifications(parsed);
+          } else {
+            throw new Error('Invalid notifications data format');
+          }
         } catch (error) {
           console.error('Failed to parse stored notifications:', error);
           await AsyncStorage.removeItem('notifications');

@@ -25,16 +25,21 @@ export const trpcClient = trpc.createClient({
         // Get user token from AsyncStorage for authentication
         try {
           const storedUser = await AsyncStorage.getItem('user');
-          if (storedUser) {
+          if (storedUser && storedUser.trim()) {
             try {
               const user = JSON.parse(storedUser);
-              return {
-                authorization: `Bearer ${user.id}`,
-              };
+              if (user && typeof user === 'object' && user.id) {
+                return {
+                  authorization: `Bearer ${user.id}`,
+                };
+              } else {
+                throw new Error('Invalid user data format');
+              }
             } catch (parseError) {
               console.error('Failed to parse stored user for auth:', parseError);
               // Clear corrupted data
               await AsyncStorage.removeItem('user');
+              await AsyncStorage.removeItem('rememberMe');
             }
           }
         } catch (error) {

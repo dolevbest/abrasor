@@ -43,6 +43,24 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     loadUser();
   }, []);
 
+  const clearCorruptedData = async () => {
+    try {
+      console.log('Clearing potentially corrupted AsyncStorage data...');
+      await AsyncStorage.multiRemove([
+        'user',
+        'rememberMe', 
+        'guestMode',
+        'notifications',
+        'unitSystem',
+        'guestCalculations',
+        'sentEmails',
+        'systemLogs'
+      ]);
+    } catch (error) {
+      console.error('Failed to clear corrupted data:', error);
+    }
+  };
+
   const loadUser = async () => {
     try {
       const rememberMeEnabled = await AsyncStorage.getItem('rememberMe');
@@ -52,18 +70,30 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       if (rememberMeEnabled === 'true' && storedUser) {
         // Auto-login if remember me was enabled
         try {
-          setUser(JSON.parse(storedUser));
+          const parsedUser = JSON.parse(storedUser);
+          if (parsedUser && typeof parsedUser === 'object') {
+            setUser(parsedUser);
+          } else {
+            throw new Error('Invalid user data format');
+          }
         } catch (error) {
           console.error('Failed to parse stored user data:', error);
           await AsyncStorage.removeItem('user');
+          await AsyncStorage.removeItem('rememberMe');
         }
       } else if (storedUser && rememberMeEnabled !== 'false') {
         // For backward compatibility, keep user logged in if rememberMe is not explicitly false
         try {
-          setUser(JSON.parse(storedUser));
+          const parsedUser = JSON.parse(storedUser);
+          if (parsedUser && typeof parsedUser === 'object') {
+            setUser(parsedUser);
+          } else {
+            throw new Error('Invalid user data format');
+          }
         } catch (error) {
           console.error('Failed to parse stored user data:', error);
           await AsyncStorage.removeItem('user');
+          await AsyncStorage.removeItem('rememberMe');
         }
       } else if (guestMode === 'true') {
         setIsGuest(true);
@@ -73,6 +103,11 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       }
     } catch (error) {
       console.error('Failed to load user:', error);
+      // If there's a critical error loading user data, clear all potentially corrupted data
+      if (error instanceof SyntaxError || (error as any)?.message?.includes('JSON')) {
+        console.log('JSON parse error detected, clearing corrupted data...');
+        await clearCorruptedData();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -124,9 +159,13 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       const emails = await AsyncStorage.getItem('sentEmails');
       let sentEmails = [];
       try {
-        sentEmails = emails ? JSON.parse(emails) : [];
+        if (emails && emails.trim()) {
+          const parsed = JSON.parse(emails);
+          sentEmails = Array.isArray(parsed) ? parsed : [];
+        }
       } catch (error) {
         console.error('Failed to parse sent emails:', error);
+        await AsyncStorage.removeItem('sentEmails');
         sentEmails = [];
       }
       
@@ -148,9 +187,13 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       const logs = await AsyncStorage.getItem('systemLogs');
       let systemLogs = [];
       try {
-        systemLogs = logs ? JSON.parse(logs) : [];
+        if (logs && logs.trim()) {
+          const parsed = JSON.parse(logs);
+          systemLogs = Array.isArray(parsed) ? parsed : [];
+        }
       } catch (error) {
         console.error('Failed to parse system logs:', error);
+        await AsyncStorage.removeItem('systemLogs');
         systemLogs = [];
       }
       systemLogs.unshift({
