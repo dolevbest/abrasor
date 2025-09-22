@@ -221,7 +221,7 @@ export default function CalculatorsScreen() {
         {isLoading ? (
           <View style={styles.loadingState}>
             <ActivityIndicator size="large" color={theme.primary} />
-            <Text style={[styles.loadingText, { color: theme.textSecondary, fontSize: theme.fontSizes.medium }]}>Loading calculators...</Text>
+            <Text style={[styles.loadingText, { color: theme.textSecondary, fontSize: theme.fontSizes.medium }]}>Updating Calculators...</Text>
           </View>
         ) : filteredCalculators.length > 0 ? (
           filteredCalculators.map(calculator => (
@@ -232,7 +232,7 @@ export default function CalculatorsScreen() {
             <Text style={[styles.emptyText, { color: theme.text, fontSize: theme.fontSizes.subtitle }]}>No calculators found</Text>
             <Text style={[styles.emptySubtext, { color: theme.textSecondary, fontSize: theme.fontSizes.medium }]}>
               {calculators.length === 0 
-                ? 'No calculators have been added yet. Admin can add calculators from the admin panel.'
+                ? 'No Calculators to Present. Please contact your administrator to add calculators.'
                 : 'Try adjusting your search or filters'}
             </Text>
             {calculators.length === 0 && (
