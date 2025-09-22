@@ -465,13 +465,32 @@ export function dbAccessRequestToAccessRequest(dbRequest: DbAccessRequest): Acce
 }
 
 export function dbCalculatorToCalculator(dbCalc: DbCalculator): Omit<Calculator, 'calculate'> {
+  let categories: string[] = [];
+  let inputs: any[] = [];
+  
+  try {
+    categories = typeof dbCalc.categories === 'string' ? JSON.parse(dbCalc.categories) : dbCalc.categories;
+  } catch (error) {
+    console.error('Failed to parse categories for calculator', dbCalc.id, ':', error);
+    console.error('Categories data:', dbCalc.categories);
+    categories = [];
+  }
+  
+  try {
+    inputs = typeof dbCalc.inputs === 'string' ? JSON.parse(dbCalc.inputs) : dbCalc.inputs;
+  } catch (error) {
+    console.error('Failed to parse inputs for calculator', dbCalc.id, ':', error);
+    console.error('Inputs data:', dbCalc.inputs);
+    inputs = [];
+  }
+  
   return {
     id: dbCalc.id,
     name: dbCalc.name,
     shortName: dbCalc.short_name,
     description: dbCalc.description || '',
-    categories: JSON.parse(dbCalc.categories),
-    inputs: JSON.parse(dbCalc.inputs)
+    categories,
+    inputs
   };
 }
 
@@ -494,13 +513,30 @@ export function calculatorToDbCalculator(calc: Omit<Calculator, 'calculate'>, fo
 }
 
 export function dbSavedCalculationToSavedCalculation(dbCalc: DbSavedCalculation): SavedCalculation {
+  let inputs: any = {};
+  let result: any = {};
+  
+  try {
+    inputs = typeof dbCalc.inputs === 'string' ? JSON.parse(dbCalc.inputs) : dbCalc.inputs;
+  } catch (error) {
+    console.error('Failed to parse inputs for saved calculation', dbCalc.id, ':', error);
+    inputs = {};
+  }
+  
+  try {
+    result = typeof dbCalc.result === 'string' ? JSON.parse(dbCalc.result) : dbCalc.result;
+  } catch (error) {
+    console.error('Failed to parse result for saved calculation', dbCalc.id, ':', error);
+    result = {};
+  }
+  
   return {
     id: dbCalc.id,
     calculatorId: dbCalc.calculator_id,
     calculatorName: dbCalc.calculator_name,
     calculatorShortName: dbCalc.calculator_short_name,
-    inputs: JSON.parse(dbCalc.inputs),
-    result: JSON.parse(dbCalc.result),
+    inputs,
+    result,
     unitSystem: dbCalc.unit_system as UnitSystem,
     notes: dbCalc.notes,
     savedAt: new Date(dbCalc.created_at)
@@ -546,12 +582,29 @@ export function dbUserSettingsToUserSettings(dbSettings: DbUserSettings) {
 }
 
 export function dbVisitorCalculationToVisitorCalculation(dbCalc: DbVisitorCalculation) {
+  let inputs: any = {};
+  let results: any = {};
+  
+  try {
+    inputs = typeof dbCalc.inputs === 'string' ? JSON.parse(dbCalc.inputs) : dbCalc.inputs;
+  } catch (error) {
+    console.error('Failed to parse inputs for visitor calculation', dbCalc.id, ':', error);
+    inputs = {};
+  }
+  
+  try {
+    results = typeof dbCalc.results === 'string' ? JSON.parse(dbCalc.results) : dbCalc.results;
+  } catch (error) {
+    console.error('Failed to parse results for visitor calculation', dbCalc.id, ':', error);
+    results = {};
+  }
+  
   return {
     id: dbCalc.id,
     visitorId: dbCalc.visitor_id,
     calculatorType: dbCalc.calculator_type,
-    inputs: JSON.parse(dbCalc.inputs),
-    results: JSON.parse(dbCalc.results),
+    inputs,
+    results,
     unitSystem: dbCalc.unit_system as UnitSystem,
     timestamp: new Date(dbCalc.timestamp)
   };
