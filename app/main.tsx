@@ -408,28 +408,30 @@ export default function MainScreen() {
           {/* User Info Section */}
           {!isGuest && user && (
             <View style={[styles.userInfoSection, { borderBottomColor: theme.border }]}>
-              <View style={styles.userAvatar}>
-                {user.profileImage ? (
-                  <Image 
-                    source={{ uri: user.profileImage }} 
-                    style={styles.avatarImage}
-                    defaultSource={require('@/assets/images/icon.png')}
-                  />
-                ) : (
-                  <View style={[styles.avatarPlaceholder, { backgroundColor: theme.primary }]}>
-                    <Text style={[styles.avatarText, { color: theme.primaryText }]}>
-                      {user.name.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.userDetails}>
-                <Text style={[styles.userName, { color: theme.text, fontSize: theme.fontSizes.medium }]} numberOfLines={1}>
+              <View style={styles.userProfileContainer}>
+                <View style={styles.userAvatarLarge}>
+                  {user.profileImage ? (
+                    <Image 
+                      source={{ uri: user.profileImage }} 
+                      style={styles.avatarImageLarge}
+                      defaultSource={require('@/assets/images/icon.png')}
+                    />
+                  ) : (
+                    <View style={[styles.avatarPlaceholderLarge, { backgroundColor: theme.primary }]}>
+                      <Text style={[styles.avatarTextLarge, { color: theme.primaryText }]}>
+                        {user.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.userNameLarge, { color: theme.text, fontSize: theme.fontSizes.subtitle }]} numberOfLines={2}>
                   {user.name}
                 </Text>
-                <Text style={[styles.userRole, { color: theme.textSecondary, fontSize: theme.fontSizes.small }]}>
-                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                </Text>
+                <View style={[styles.userRoleChip, { backgroundColor: theme.primary }]}>
+                  <Text style={[styles.userRoleText, { color: theme.primaryText, fontSize: theme.fontSizes.small }]}>
+                    {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                  </Text>
+                </View>
               </View>
             </View>
           )}
@@ -437,18 +439,20 @@ export default function MainScreen() {
           {/* Guest Info Section */}
           {isGuest && (
             <View style={[styles.userInfoSection, { borderBottomColor: theme.border }]}>
-              <View style={styles.userAvatar}>
-                <View style={[styles.avatarPlaceholder, { backgroundColor: theme.textSecondary }]}>
-                  <User size={20} color={theme.surface} />
+              <View style={styles.userProfileContainer}>
+                <View style={styles.userAvatarLarge}>
+                  <View style={[styles.avatarPlaceholderLarge, { backgroundColor: theme.textSecondary }]}>
+                    <User size={32} color={theme.surface} />
+                  </View>
                 </View>
-              </View>
-              <View style={styles.userDetails}>
-                <Text style={[styles.userName, { color: theme.text, fontSize: theme.fontSizes.medium }]}>
+                <Text style={[styles.userNameLarge, { color: theme.text, fontSize: theme.fontSizes.subtitle }]}>
                   Guest User
                 </Text>
-                <Text style={[styles.userRole, { color: theme.textSecondary, fontSize: theme.fontSizes.small }]}>
-                  Limited Access
-                </Text>
+                <View style={[styles.userRoleChip, { backgroundColor: theme.textSecondary }]}>
+                  <Text style={[styles.userRoleText, { color: theme.surface, fontSize: theme.fontSizes.small }]}>
+                    Limited Access
+                  </Text>
+                </View>
               </View>
             </View>
           )}
@@ -671,12 +675,48 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   userInfoSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 20,
     borderBottomWidth: 1,
+  },
+  userProfileContainer: {
+    alignItems: 'center',
     gap: 12,
+  },
+  userAvatarLarge: {
+    width: 80,
+    height: 80,
+  },
+  avatarImageLarge: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  avatarPlaceholderLarge: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarTextLarge: {
+    fontSize: 28,
+    fontWeight: '600' as const,
+  },
+  userNameLarge: {
+    fontWeight: '600' as const,
+    textAlign: 'center' as const,
+    marginTop: 4,
+  },
+  userRoleChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginTop: 4,
+  },
+  userRoleText: {
+    fontWeight: '600' as const,
+    textTransform: 'capitalize' as const,
   },
   userAvatar: {
     width: 48,
