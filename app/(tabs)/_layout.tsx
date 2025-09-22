@@ -56,7 +56,7 @@ export default function TabLayout() {
         name="calculators"
         options={{
           headerTitle: () => (
-            <View style={styles.headerTitle}>
+            <View style={styles.headerTitleCentered}>
               <AbrasorLogo size={28} />
             </View>
           ),
@@ -68,6 +68,19 @@ export default function TabLayout() {
           ),
           headerRight: () => (
             <View style={styles.headerRight}>
+              <TouchableOpacity 
+                style={styles.notificationButton} 
+                onPress={() => router.push('/notifications')}
+              >
+                <Bell size={20} color={theme.headerText} />
+                {unreadCount > 0 && (
+                  <View style={[styles.notificationBadge, { backgroundColor: theme.error }]}>
+                    <Text style={[styles.notificationBadgeText, { color: theme.primaryText }]}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
               <UnitToggle />
             </View>
           ),
@@ -115,12 +128,45 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginRight: 16,
+    gap: 12,
+  },
+  notificationButton: {
+    position: 'relative',
+    padding: 4,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+    lineHeight: 12,
   },
   headerTitle: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerTitleCentered: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
   badge: {
     position: 'absolute',
