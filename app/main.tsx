@@ -11,6 +11,7 @@ import {
   PanResponder,
   useWindowDimensions,
   Image,
+  Easing,
 } from 'react-native';
 import { Search, Settings, RefreshCw, X, Menu, Bell, User, Shield, Calculator } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -105,14 +106,17 @@ export default function MainScreen() {
     setMenuVisible(!menuVisible);
     
     Animated.parallel([
-      Animated.timing(menuAnimation, {
+      Animated.spring(menuAnimation, {
         toValue,
-        duration: 300,
         useNativeDriver: true,
+        tension: 100,
+        friction: 8,
+        mass: 1,
       }),
       Animated.timing(overlayAnimation, {
         toValue: overlayValue,
-        duration: 300,
+        duration: 400,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start();
@@ -137,13 +141,17 @@ export default function MainScreen() {
       if (gestureState.dx > 0 && !menuVisible) {
         // Swiping right to open menu
         const progress = Math.min(gestureState.dx / MENU_WIDTH, 1);
-        menuAnimation.setValue(-MENU_WIDTH + (MENU_WIDTH * progress));
-        overlayAnimation.setValue(0.5 * progress);
+        // Apply easing to make the movement feel more natural
+        const easedProgress = Easing.out(Easing.quad)(progress);
+        menuAnimation.setValue(-MENU_WIDTH + (MENU_WIDTH * easedProgress));
+        overlayAnimation.setValue(0.5 * easedProgress);
       } else if (gestureState.dx < 0 && menuVisible) {
         // Swiping left to close menu
         const progress = Math.max(1 + (gestureState.dx / MENU_WIDTH), 0);
-        menuAnimation.setValue(-MENU_WIDTH + (MENU_WIDTH * progress));
-        overlayAnimation.setValue(0.5 * progress);
+        // Apply easing to make the movement feel more natural
+        const easedProgress = Easing.out(Easing.quad)(progress);
+        menuAnimation.setValue(-MENU_WIDTH + (MENU_WIDTH * easedProgress));
+        overlayAnimation.setValue(0.5 * easedProgress);
       }
     },
     onPanResponderRelease: (evt, gestureState) => {
@@ -151,14 +159,17 @@ export default function MainScreen() {
         // Open menu
         setMenuVisible(true);
         Animated.parallel([
-          Animated.timing(menuAnimation, {
+          Animated.spring(menuAnimation, {
             toValue: 0,
-            duration: 200,
             useNativeDriver: true,
+            tension: 120,
+            friction: 8,
+            mass: 0.8,
           }),
           Animated.timing(overlayAnimation, {
             toValue: 0.5,
-            duration: 200,
+            duration: 300,
+            easing: Easing.out(Easing.quad),
             useNativeDriver: true,
           }),
         ]).start();
@@ -166,14 +177,17 @@ export default function MainScreen() {
         // Close menu
         setMenuVisible(false);
         Animated.parallel([
-          Animated.timing(menuAnimation, {
+          Animated.spring(menuAnimation, {
             toValue: -MENU_WIDTH,
-            duration: 200,
             useNativeDriver: true,
+            tension: 120,
+            friction: 8,
+            mass: 0.8,
           }),
           Animated.timing(overlayAnimation, {
             toValue: 0,
-            duration: 200,
+            duration: 300,
+            easing: Easing.out(Easing.quad),
             useNativeDriver: true,
           }),
         ]).start();
@@ -182,14 +196,17 @@ export default function MainScreen() {
         const toValue = menuVisible ? 0 : -MENU_WIDTH;
         const overlayValue = menuVisible ? 0.5 : 0;
         Animated.parallel([
-          Animated.timing(menuAnimation, {
+          Animated.spring(menuAnimation, {
             toValue,
-            duration: 200,
             useNativeDriver: true,
+            tension: 100,
+            friction: 8,
+            mass: 1,
           }),
           Animated.timing(overlayAnimation, {
             toValue: overlayValue,
-            duration: 200,
+            duration: 250,
+            easing: Easing.out(Easing.quad),
             useNativeDriver: true,
           }),
         ]).start();
