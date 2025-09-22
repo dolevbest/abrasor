@@ -36,7 +36,10 @@ function RootLayoutNav() {
       headerTitleStyle,
     }}>
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="main" options={{ headerShown: false }} />
+      <Stack.Screen name="notifications" options={{ presentation: "card" }} />
+      <Stack.Screen name="profile" options={{ presentation: "card" }} />
+      <Stack.Screen name="admin" options={{ presentation: "card" }} />
       <Stack.Screen name="saved-calculations" options={{ presentation: "card" }} />
     </Stack>
   );

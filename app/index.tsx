@@ -17,7 +17,7 @@ export default function Index() {
   }
 
   if (user || isGuest) {
-    return <Redirect href="/(tabs)/calculators" />;
+    return <Redirect href="/main" />;
   }
 
   return <Redirect href="/(auth)/login" />;
