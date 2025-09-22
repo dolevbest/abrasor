@@ -8,9 +8,11 @@ import { TRPCError } from '@trpc/server';
 export const getCalculatorsProcedure = publicProcedure
   .query(() => {
     console.log('🔍 getCalculatorsProcedure called');
-    const db = getDatabase();
     
     try {
+      const db = getDatabase();
+      console.log('📊 Database connection established');
+      
       // First, let's check if there are any calculators at all
       console.log('📊 Querying calculators table...');
       const dbCalculators = db.prepare('SELECT * FROM calculators WHERE enabled = 1 ORDER BY usage_count DESC').all() as DbCalculator[];
@@ -21,6 +23,7 @@ export const getCalculatorsProcedure = publicProcedure
         console.log('⚠️ No calculators found in database, initializing with defaults...');
         const initialized = initializeDefaultCalculators(db);
         console.log('✅ Initialized', initialized.length, 'default calculators');
+        console.log('🔄 Returning initialized calculators:', initialized.map(c => ({ id: c.id, name: c.name })));
         return initialized;
       }
       
@@ -29,13 +32,31 @@ export const getCalculatorsProcedure = publicProcedure
       const convertedCalculators: any[] = [];
       let corruptedCount = 0;
       
-      for (const dbCalc of dbCalculators) {
+      for (let i = 0; i < dbCalculators.length; i++) {
+        const dbCalc = dbCalculators[i];
+        console.log(`🔄 Converting calculator ${i + 1}/${dbCalculators.length}:`, dbCalc.id, dbCalc.name);
+        
         try {
+          // Log raw database data for debugging
+          console.log('📋 Raw DB calculator data:', {
+            id: dbCalc.id,
+            name: dbCalc.name,
+            categories: typeof dbCalc.categories === 'string' ? dbCalc.categories.substring(0, 100) : dbCalc.categories,
+            inputs: typeof dbCalc.inputs === 'string' ? dbCalc.inputs.substring(0, 100) : dbCalc.inputs
+          });
+          
           const converted = dbCalculatorToCalculator(dbCalc);
           console.log('✅ Successfully converted calculator:', dbCalc.id, dbCalc.name);
+          console.log('📋 Converted calculator data:', {
+            id: converted.id,
+            name: converted.name,
+            categoriesCount: converted.categories?.length || 0,
+            inputsCount: converted.inputs?.length || 0
+          });
           convertedCalculators.push(converted);
         } catch (conversionError) {
           console.error('❌ Failed to convert calculator:', dbCalc.id, 'Error:', conversionError);
+          console.error('❌ Error stack:', conversionError instanceof Error ? conversionError.stack : 'No stack trace');
           console.log('🗑️ Marking calculator as corrupted:', dbCalc.id);
           corruptedCount++;
         }
@@ -54,17 +75,22 @@ export const getCalculatorsProcedure = publicProcedure
         db.prepare('DELETE FROM calculators').run();
         const reinitialized = initializeDefaultCalculators(db);
         console.log('✅ Reinitialized', reinitialized.length, 'default calculators');
+        console.log('🔄 Returning reinitialized calculators:', reinitialized.map(c => ({ id: c.id, name: c.name })));
         return reinitialized;
       }
       
       console.log('✅ Returning', convertedCalculators.length, 'valid calculators');
+      console.log('🔄 Final calculators list:', convertedCalculators.map(c => ({ id: c.id, name: c.name })));
       return convertedCalculators;
       
     } catch (error) {
       console.error('❌ Critical error in getCalculatorsProcedure:', error);
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       
       // As a last resort, return default calculators directly
       console.log('🔄 Returning default calculators as fallback...');
+      console.log('🔄 Default calculators count:', defaultCalculators.length);
+      console.log('🔄 Default calculators list:', defaultCalculators.map(c => ({ id: c.id, name: c.name })));
       return defaultCalculators;
     }
   });

@@ -46,7 +46,7 @@ export const trpcClient = trpc.createClient({
   links: [
     httpLink({
       url: trpcUrl,
-      transformer: superjson,
+      // transformer: superjson, // Temporarily disabled to debug JSON parsing issues
       async headers() {
         // Get user token from AsyncStorage for authentication
         try {
@@ -78,7 +78,7 @@ export const trpcClient = trpc.createClient({
         
         // Add timeout to prevent hanging requests
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
         
         const fetchOptions = {
           ...options,
@@ -89,21 +89,43 @@ export const trpcClient = trpc.createClient({
           clearTimeout(timeoutId);
           console.log('📡 tRPC response status:', response.status, response.statusText);
           
+          // Always try to read the response text first for debugging
+          let responseText = '';
+          try {
+            responseText = await response.clone().text();
+            console.log('📄 Response body preview:', responseText.substring(0, 200));
+          } catch (textError) {
+            console.error('❌ Could not read response text:', textError);
+          }
+          
           if (!response.ok) {
             console.error('❌ tRPC response not ok:', response.status, response.statusText);
+            console.error('❌ Full response body:', responseText);
             
-            // Try to get the response text to see what's being returned
+            // Check if it's HTML (error page)
+            if (responseText.trim().startsWith('<')) {
+              console.error('❌ Server returned HTML instead of JSON - likely a routing or CORS issue');
+              throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
+            }
+            
+            // Check if response is empty
+            if (!responseText.trim()) {
+              console.error('❌ Server returned empty response');
+              throw new Error(`Server returned empty response. Status: ${response.status}`);
+            }
+            
+            // Try to parse as JSON to see if it's a valid error response
             try {
-              const responseText = await response.clone().text();
-              console.error('❌ Response body:', responseText.substring(0, 500));
-              
-              // Check if it's HTML (error page)
-              if (responseText.trim().startsWith('<')) {
-                console.error('❌ Server returned HTML instead of JSON - likely a routing or CORS issue');
-                throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
-              }
-            } catch (textError) {
-              console.error('❌ Could not read response text:', textError);
+              const errorData = JSON.parse(responseText);
+              console.error('❌ Server error response:', errorData);
+            } catch (parseError) {
+              console.error('❌ Response is not valid JSON:', parseError);
+              console.error('❌ Raw response:', responseText);
+            }
+          } else {
+            // Check if successful response is valid JSON
+            if (responseText && !responseText.trim().startsWith('{') && !responseText.trim().startsWith('[')) {
+              console.warn('⚠️ Successful response might not be valid JSON:', responseText.substring(0, 100));
             }
           }
           
@@ -111,7 +133,7 @@ export const trpcClient = trpc.createClient({
         }).catch(error => {
           clearTimeout(timeoutId);
           if (error.name === 'AbortError') {
-            console.error('❌ tRPC request timed out after 5 seconds');
+            console.error('❌ tRPC request timed out after 8 seconds');
             throw new Error('Request timed out');
           }
           console.error('❌ tRPC fetch error:', error);

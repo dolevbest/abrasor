@@ -532,19 +532,26 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Calculator {
   
   // Parse categories with ultra-robust error handling
   try {
+    console.log('📋 Raw categories data type:', typeof dbCalc.categories);
+    console.log('📋 Raw categories data:', dbCalc.categories);
+    
     if (dbCalc.categories) {
       if (Array.isArray(dbCalc.categories)) {
+        console.log('✅ Categories is already an array');
         categories = dbCalc.categories;
       } else if (typeof dbCalc.categories === 'string') {
         const trimmed = dbCalc.categories.trim();
+        console.log('📋 Trimmed categories string:', trimmed);
         
         // Handle empty or invalid strings
         if (!trimmed || trimmed === 'null' || trimmed === 'undefined' || trimmed === '') {
+          console.log('⚠️ Empty or null categories string');
           categories = [];
         } else {
           // Check for HTML content or other non-JSON content
           if (trimmed.includes('<') || trimmed.includes('>') || !trimmed.startsWith('[')) {
             console.warn('⚠️ Detected corrupted categories data for calculator', dbCalc.id, '- contains HTML or invalid format');
+            console.warn('⚠️ Corrupted data preview:', trimmed.substring(0, 200));
             categories = [];
           } else {
             // Clean the string more aggressively
@@ -557,35 +564,48 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Calculator {
               .replace(/\\"/g, '"') // Fix escaped double quotes
               .trim();
             
+            console.log('📋 Cleaned categories string:', cleaned);
+            
             // Check if it looks like valid JSON array
             if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
               try {
+                console.log('📋 Attempting to parse categories JSON...');
                 const parsed = JSON.parse(cleaned);
+                console.log('✅ Successfully parsed categories:', parsed);
                 categories = Array.isArray(parsed) ? parsed.filter(c => typeof c === 'string' && c.trim()) : [];
+                console.log('✅ Filtered categories:', categories);
               } catch (parseError) {
-                console.warn('⚠️ JSON parse failed for categories, attempting manual extraction:', cleaned.substring(0, 100));
+                console.warn('⚠️ JSON parse failed for categories:', parseError);
+                console.warn('⚠️ Failed string:', cleaned.substring(0, 100));
                 // Try manual extraction as fallback
                 const match = cleaned.match(/\[([^\]]+)\]/);
                 if (match) {
+                  console.log('🔄 Attempting manual extraction from:', match[1]);
                   const elements = match[1]
                     .split(',')
                     .map(s => s.trim().replace(/^["']|["']$/g, ''))
                     .filter(e => e.length > 0 && typeof e === 'string');
                   categories = elements;
+                  console.log('✅ Manual extraction result:', categories);
                 } else {
+                  console.warn('⚠️ Manual extraction failed');
                   categories = [];
                 }
               }
             } else {
               console.warn('⚠️ Invalid categories format for calculator', dbCalc.id, '- not a JSON array');
+              console.warn('⚠️ Invalid format preview:', cleaned.substring(0, 100));
               categories = [];
             }
           }
         }
       }
+    } else {
+      console.log('⚠️ No categories data found');
     }
   } catch (error) {
     console.error('❌ Failed to parse categories for calculator', dbCalc.id, ':', error);
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     categories = [];
   }
   
