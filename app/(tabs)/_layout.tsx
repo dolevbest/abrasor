@@ -1,19 +1,22 @@
 import { Tabs } from "expo-router";
 import { Calculator, User, Shield, Bell, Menu } from "lucide-react-native";
 import React, { useEffect } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 
 import { useAuth } from "@/hooks/auth-context";
 import { useNotifications } from "@/hooks/notifications-context";
 import { useTheme } from "@/hooks/theme-context";
+import { useMenu } from "@/hooks/menu-context";
 import UnitToggle from "@/components/UnitToggle";
 import AbrasorLogo from "@/components/AbrasorLogo";
+import SideMenu from "@/components/SideMenu";
 import { router } from "expo-router";
 
 export default function TabLayout() {
   const { isAuthenticated, user, isGuest } = useAuth();
   const { unreadCount } = useNotifications();
   const { theme } = useTheme();
+  const { isMenuOpen, openMenu, closeMenu } = useMenu();
 
   useEffect(() => {
     if (!isAuthenticated && !isGuest) {
@@ -26,7 +29,8 @@ export default function TabLayout() {
   }
 
   return (
-    <Tabs
+    <>
+      <Tabs
       screenOptions={{
         tabBarActiveTintColor: theme.tabBarActive,
         tabBarInactiveTintColor: theme.tabBarInactive,
@@ -58,9 +62,9 @@ export default function TabLayout() {
           ),
           tabBarIcon: ({ color }) => <Calculator size={24} color={color} />,
           headerLeft: () => (
-            <View style={styles.headerLeft}>
+            <TouchableOpacity style={styles.headerLeft} onPress={openMenu}>
               <Menu size={24} color={theme.headerText} />
-            </View>
+            </TouchableOpacity>
           ),
           headerRight: () => (
             <View style={styles.headerRight}>
@@ -100,7 +104,9 @@ export default function TabLayout() {
           href: user?.role === 'admin' && !isGuest ? undefined : null,
         }}
       />
-    </Tabs>
+      </Tabs>
+      <SideMenu visible={isMenuOpen} onClose={closeMenu} />
+    </>
   );
 }
 

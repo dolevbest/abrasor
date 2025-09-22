@@ -10,6 +10,7 @@ import { CalculationsProvider } from "@/hooks/calculations-context";
 import { CalculatorsProvider } from "@/hooks/calculators-context";
 import { ThemeProvider, useTheme } from "@/hooks/theme-context";
 import { NotificationsProvider } from "@/hooks/notifications-context";
+import { MenuProvider } from "@/hooks/menu-context";
 import NotificationOverlay from "@/components/NotificationOverlay";
 import { trpc, trpcClient } from "@/lib/trpc";
 
@@ -58,12 +59,14 @@ export default function RootLayout() {
             <ThemeProvider>
               <SettingsProvider>
                 <NotificationsProvider>
-                  <CalculatorsProvider>
-                    <CalculationsProvider>
-                      <RootLayoutNav />
-                      <NotificationOverlay />
-                    </CalculationsProvider>
-                  </CalculatorsProvider>
+                  <MenuProvider>
+                    <CalculatorsProvider>
+                      <CalculationsProvider>
+                        <RootLayoutNav />
+                        <NotificationOverlay />
+                      </CalculationsProvider>
+                    </CalculatorsProvider>
+                  </MenuProvider>
                 </NotificationsProvider>
               </SettingsProvider>
             </ThemeProvider>
