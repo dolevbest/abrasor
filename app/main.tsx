@@ -13,7 +13,7 @@ import {
   Image,
   Easing,
 } from 'react-native';
-import { Search, Settings, RefreshCw, X, Menu, Bell, User, Shield, Calculator } from 'lucide-react-native';
+import { Search, Settings, RefreshCw, X, Menu, Bell, User, Shield, Calculator, LogOut, UserPlus } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
@@ -26,6 +26,7 @@ import { useAuth } from '@/hooks/auth-context';
 import { useNotifications } from '@/hooks/notifications-context';
 import AbrasorLogo from '@/components/AbrasorLogo';
 import UnitToggle from '@/components/UnitToggle';
+import GuestUpgradeForm from '@/components/GuestUpgradeForm';
 
 
 
@@ -33,7 +34,7 @@ export default function MainScreen() {
   const { theme } = useTheme();
   const { calculators, categories, isLoading, reloadCalculators, updateUnitSystem } = useCalculators();
   const { unitSystem } = useSettings();
-  const { isAuthenticated, user, isGuest } = useAuth();
+  const { isAuthenticated, user, isGuest, logout } = useAuth();
   const { unreadCount } = useNotifications();
   const { width: screenWidth } = useWindowDimensions();
   const MENU_WIDTH = screenWidth * 0.8;
@@ -43,6 +44,7 @@ export default function MainScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasUpdates, setHasUpdates] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [showUpgradeForm, setShowUpgradeForm] = useState(false);
   const menuAnimation = useState(new Animated.Value(-MENU_WIDTH))[0];
   const overlayAnimation = useState(new Animated.Value(0))[0];
 
@@ -130,6 +132,26 @@ export default function MainScreen() {
   const navigateToScreen = (screen: string) => {
     closeMenu();
     router.push(screen as any);
+  };
+
+  const handleLogout = async () => {
+    closeMenu();
+    try {
+      await logout();
+      router.replace('/(auth)/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  const handleUpgradeGuest = () => {
+    closeMenu();
+    setShowUpgradeForm(true);
+  };
+
+  const handleUpgradeSuccess = async () => {
+    setShowUpgradeForm(false);
+    await handleLogout();
   };
 
   const panResponder = PanResponder.create({
@@ -512,9 +534,39 @@ export default function MainScreen() {
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Logout/Upgrade Section */}
+          <View style={styles.menuFooter}>
+            {isGuest ? (
+              <TouchableOpacity 
+                style={[styles.menuItem, { borderBottomColor: theme.border }]}
+                onPress={handleUpgradeGuest}
+              >
+                <UserPlus size={24} color={theme.primary} />
+                <Text style={[styles.menuItemText, { color: theme.primary, fontSize: theme.fontSizes.medium }]}>Create Account</Text>
+              </TouchableOpacity>
+            ) : null}
+            
+            <TouchableOpacity 
+              style={[styles.menuItem, { borderBottomWidth: 0 }]}
+              onPress={handleLogout}
+            >
+              <LogOut size={24} color={theme.error} />
+              <Text style={[styles.menuItemText, { color: theme.error, fontSize: theme.fontSizes.medium }]}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+          
           <SafeAreaView edges={['bottom']} style={styles.menuSafeAreaBottom} />
         </View>
       </Animated.View>
+
+      {/* Guest Upgrade Form */}
+      {showUpgradeForm && (
+        <GuestUpgradeForm
+          onClose={() => setShowUpgradeForm(false)}
+          onSuccess={handleUpgradeSuccess}
+        />
+      )}
     </View>
   );
 }
@@ -802,5 +854,9 @@ const styles = StyleSheet.create({
   },
   menuSafeAreaBottom: {
     flex: 0,
+  },
+  menuFooter: {
+    marginTop: 'auto',
+    paddingTop: 16,
   },
 });

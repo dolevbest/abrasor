@@ -2,6 +2,7 @@ import { createTRPCRouter } from "@/backend/trpc/create-context";
 import hiRoute from "@/backend/trpc/routes/example/hi/route";
 import { loginProcedure } from "@/backend/trpc/routes/auth/login/route";
 import { requestAccessProcedure } from "@/backend/trpc/routes/auth/request-access/route";
+import { upgradeGuestProcedure } from "@/backend/trpc/routes/auth/upgrade-guest/route";
 import { 
   getUsersProcedure, 
   getAccessRequestsProcedure, 
@@ -53,6 +54,7 @@ export const appRouter = createTRPCRouter({
   auth: createTRPCRouter({
     login: loginProcedure,
     requestAccess: requestAccessProcedure,
+    upgradeGuest: upgradeGuestProcedure,
   }),
   users: createTRPCRouter({
     getAll: getUsersProcedure,
