@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
   SafeAreaView,
+  Easing,
 } from 'react-native';
 import {
   X,
@@ -30,6 +31,96 @@ interface SideMenuProps {
   onClose: () => void;
 }
 
+interface MenuItemAnimatedProps {
+  item: {
+    icon: any;
+    label: string;
+    route: string;
+    badge?: number;
+  };
+  Icon: any;
+  theme: any;
+  onPress: () => void;
+  index: number;
+  visible: boolean;
+}
+
+function MenuItemAnimated({ item, Icon, theme, onPress, index, visible }: MenuItemAnimatedProps) {
+  const itemOpacity = React.useRef(new Animated.Value(0)).current;
+  const itemTranslateX = React.useRef(new Animated.Value(-20)).current;
+  const itemScale = React.useRef(new Animated.Value(0.9)).current;
+
+  React.useEffect(() => {
+    if (visible) {
+      const delay = index * 50; // Stagger each item by 50ms
+      
+      Animated.parallel([
+        Animated.timing(itemOpacity, {
+          toValue: 1,
+          duration: 300,
+          delay: delay + 150,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(itemTranslateX, {
+          toValue: 0,
+          duration: 400,
+          delay: delay + 150,
+          easing: Easing.out(Easing.back(1.1)),
+          useNativeDriver: true,
+        }),
+        Animated.spring(itemScale, {
+          toValue: 1,
+          tension: 150,
+          friction: 8,
+          delay: delay + 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Reset for next opening
+      itemOpacity.setValue(0);
+      itemTranslateX.setValue(-20);
+      itemScale.setValue(0.9);
+    }
+  }, [visible, index, itemOpacity, itemTranslateX, itemScale]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.menuItemAnimated,
+        {
+          opacity: itemOpacity,
+          transform: [
+            { translateX: itemTranslateX },
+            { scale: itemScale },
+          ],
+        },
+      ]}
+    >
+      <TouchableOpacity
+        style={[styles.menuItem, { borderBottomColor: theme.border }]}
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        <View style={styles.menuItemLeft}>
+          <Icon size={22} color={theme.text} />
+          <Text style={[styles.menuItemText, { color: theme.text }]}>
+            {item.label}
+          </Text>
+        </View>
+        {item.badge && (
+          <View style={[styles.badge, { backgroundColor: theme.error }]}>
+            <Text style={[styles.badgeText, { color: theme.primaryText }]}>
+              {item.badge}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 export default function SideMenu({ visible, onClose }: SideMenuProps) {
   const { theme } = useTheme();
   const { user, isGuest, logout, upgradeFromGuest } = useAuth();
@@ -42,36 +133,89 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
   
   const slideAnim = React.useRef(new Animated.Value(-menuWidth)).current;
   const overlayOpacity = React.useRef(new Animated.Value(0)).current;
+  const menuItemsOpacity = React.useRef(new Animated.Value(0)).current;
+  const menuItemsTranslateY = React.useRef(new Animated.Value(20)).current;
+  const scaleAnim = React.useRef(new Animated.Value(0.95)).current;
 
   React.useEffect(() => {
     if (visible) {
+      // Reset values for opening animation
+      menuItemsOpacity.setValue(0);
+      menuItemsTranslateY.setValue(20);
+      scaleAnim.setValue(0.95);
+      
+      // Staggered opening animation
       Animated.parallel([
-        Animated.timing(slideAnim, {
+        // Slide in with spring physics
+        Animated.spring(slideAnim, {
           toValue: 0,
-          duration: 300,
+          tension: 100,
+          friction: 8,
           useNativeDriver: true,
         }),
+        // Overlay fade in
         Animated.timing(overlayOpacity, {
-          toValue: 0.8, // Darker overlay (was probably 0.5 before)
-          duration: 300,
+          toValue: 0.8,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
-      ]).start();
+        // Scale animation for satisfying feel
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 120,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // Menu items fade in after panel is visible
+        Animated.parallel([
+          Animated.timing(menuItemsOpacity, {
+            toValue: 1,
+            duration: 200,
+            delay: 100,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(menuItemsTranslateY, {
+            toValue: 0,
+            duration: 250,
+            delay: 100,
+            easing: Easing.out(Easing.back(1.2)),
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
     } else {
+      // Closing animation - faster and snappier
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: -menuWidth,
-          duration: 250,
+          duration: 280,
+          easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(overlayOpacity, {
           toValue: 0,
-          duration: 250,
+          duration: 280,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 0.95,
+          duration: 280,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        // Menu items fade out immediately
+        Animated.timing(menuItemsOpacity, {
+          toValue: 0,
+          duration: 150,
           useNativeDriver: true,
         }),
       ]).start();
     }
-  }, [visible, slideAnim, overlayOpacity, menuWidth]);
+  }, [visible, slideAnim, overlayOpacity, menuItemsOpacity, menuItemsTranslateY, scaleAnim, menuWidth]);
 
   const handleNavigate = (route: string) => {
     onClose();
@@ -156,7 +300,10 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
             styles.menuPanel,
             {
               backgroundColor: theme.surface,
-              transform: [{ translateX: slideAnim }],
+              transform: [
+                { translateX: slideAnim },
+                { scale: scaleAnim },
+              ],
             },
           ]}
         >
@@ -185,37 +332,43 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
             </View>
 
             {/* Menu Items */}
-            <View style={styles.menuItems}>
+            <Animated.View 
+              style={[
+                styles.menuItems,
+                {
+                  opacity: menuItemsOpacity,
+                  transform: [{ translateY: menuItemsTranslateY }],
+                },
+              ]}
+            >
               {menuItems
                 .filter(item => item.show)
-                .map((item) => {
+                .map((item, index) => {
                   const Icon = item.icon;
                   return (
-                    <TouchableOpacity
+                    <MenuItemAnimated
                       key={item.route}
-                      style={[styles.menuItem, { borderBottomColor: theme.border }]}
+                      item={item}
+                      Icon={Icon}
+                      theme={theme}
                       onPress={() => handleNavigate(item.route)}
-                    >
-                      <View style={styles.menuItemLeft}>
-                        <Icon size={22} color={theme.text} />
-                        <Text style={[styles.menuItemText, { color: theme.text }]}>
-                          {item.label}
-                        </Text>
-                      </View>
-                      {item.badge && (
-                        <View style={[styles.badge, { backgroundColor: theme.error }]}>
-                          <Text style={[styles.badgeText, { color: theme.primaryText }]}>
-                            {item.badge}
-                          </Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
+                      index={index}
+                      visible={visible}
+                    />
                   );
                 })}
-            </View>
+            </Animated.View>
 
             {/* Bottom Actions */}
-            <View style={styles.bottomActions}>
+            <Animated.View 
+              style={[
+                styles.bottomActions,
+                {
+                  opacity: menuItemsOpacity,
+                  transform: [{ translateY: menuItemsTranslateY }],
+                },
+              ]}
+            >
               {isGuest && (
                 <TouchableOpacity
                   style={[styles.createAccountButton, { backgroundColor: theme.success }]}
@@ -237,7 +390,7 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
                   {isGuest ? 'Exit Guest Mode' : 'Logout'}
                 </Text>
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -373,5 +526,8 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 16,
     fontWeight: '600' as const,
+  },
+  menuItemAnimated: {
+    // Base style for animated menu items
   },
 });
