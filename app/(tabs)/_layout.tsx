@@ -56,15 +56,17 @@ export default function TabLayout() {
         name="calculators"
         options={{
           headerTitle: () => (
-            <View style={styles.headerTitleCentered}>
+            <View style={styles.headerTitleContainer}>
               <AbrasorLogo size={28} />
             </View>
           ),
           tabBarIcon: ({ color }) => <Calculator size={24} color={color} />,
           headerLeft: () => (
-            <TouchableOpacity style={styles.headerLeft} onPress={openMenu}>
-              <Menu size={24} color={theme.headerText} />
-            </TouchableOpacity>
+            <View style={styles.headerLeft}>
+              <TouchableOpacity onPress={openMenu}>
+                <Menu size={24} color={theme.headerText} />
+              </TouchableOpacity>
+            </View>
           ),
           headerRight: () => (
             <View style={styles.headerRight}>
@@ -126,6 +128,8 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   headerLeft: {
     marginLeft: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerRight: {
     flexDirection: 'row',
@@ -158,15 +162,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitleCentered: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
+  headerTitleContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1,
+    width: '100%',
   },
   badge: {
     position: 'absolute',
