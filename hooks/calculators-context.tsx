@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 import { UnitSystem } from '@/types';
 import { trpc } from '@/lib/trpc';
@@ -6,15 +6,36 @@ import { calculators as defaultCalculators } from '@/utils/calculators';
 
 export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   const [currentUnitSystem, setCurrentUnitSystem] = useState<UnitSystem>('metric');
+  const [hasTimedOut, setHasTimedOut] = useState(false);
   
   // Fetch calculators from database
   const calculatorsQuery = trpc.calculators.getAll.useQuery(undefined, {
-    retry: 2,
+    retry: 1,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
+    timeout: 10000, // 10 second timeout
+    onError: (error) => {
+      console.error('❌ tRPC calculators query error:', error);
+    },
+    onSuccess: (data) => {
+      console.log('✅ tRPC calculators query success:', data?.length || 0, 'calculators');
+      setHasTimedOut(false);
+    },
   });
   
-  const backendFailed = calculatorsQuery.isError;
+  // Set timeout fallback
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (calculatorsQuery.isLoading) {
+        console.log('⏰ Query timeout - falling back to default calculators');
+        setHasTimedOut(true);
+      }
+    }, 8000); // 8 second fallback
+    
+    return () => clearTimeout(timer);
+  }, [calculatorsQuery.isLoading]);
+  
+  const backendFailed = calculatorsQuery.isError || hasTimedOut;
   
   console.log('🔍 Calculators status:', {
     isLoading: calculatorsQuery.isLoading,
@@ -105,7 +126,7 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   return useMemo(() => ({
     calculators,
     categories,
-    isLoading: calculatorsQuery.isLoading,
+    isLoading: calculatorsQuery.isLoading && !hasTimedOut,
     backendFailed,
     trackUsage,
     reloadCalculators,
@@ -115,5 +136,5 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     getCalculatorsByCategory,
     updateUnitSystem,
     currentUnitSystem,
-  }), [calculators, categories, calculatorsQuery.isLoading, trackUsage, reloadCalculators, refreshCalculators, clearCorruptedCalculators, getCalculatorById, getCalculatorsByCategory, updateUnitSystem, currentUnitSystem, backendFailed]);
+  }), [calculators, categories, calculatorsQuery.isLoading, hasTimedOut, trackUsage, reloadCalculators, refreshCalculators, clearCorruptedCalculators, getCalculatorById, getCalculatorsByCategory, updateUnitSystem, currentUnitSystem, backendFailed]);
 });
