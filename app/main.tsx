@@ -10,6 +10,7 @@ import {
   Animated,
   PanResponder,
   useWindowDimensions,
+  Image,
 } from 'react-native';
 import { Search, Settings, RefreshCw, X, Menu, Bell, User, Shield, Calculator } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -404,6 +405,54 @@ export default function MainScreen() {
             <Text style={[styles.menuTitle, { color: theme.text, fontSize: theme.fontSizes.title }]}>Abrasor</Text>
           </View>
 
+          {/* User Info Section */}
+          {!isGuest && user && (
+            <View style={[styles.userInfoSection, { borderBottomColor: theme.border }]}>
+              <View style={styles.userAvatar}>
+                {user.profileImage ? (
+                  <Image 
+                    source={{ uri: user.profileImage }} 
+                    style={styles.avatarImage}
+                    defaultSource={require('@/assets/images/icon.png')}
+                  />
+                ) : (
+                  <View style={[styles.avatarPlaceholder, { backgroundColor: theme.primary }]}>
+                    <Text style={[styles.avatarText, { color: theme.primaryText }]}>
+                      {user.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.userDetails}>
+                <Text style={[styles.userName, { color: theme.text, fontSize: theme.fontSizes.medium }]} numberOfLines={1}>
+                  {user.name}
+                </Text>
+                <Text style={[styles.userRole, { color: theme.textSecondary, fontSize: theme.fontSizes.small }]}>
+                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Guest Info Section */}
+          {isGuest && (
+            <View style={[styles.userInfoSection, { borderBottomColor: theme.border }]}>
+              <View style={styles.userAvatar}>
+                <View style={[styles.avatarPlaceholder, { backgroundColor: theme.textSecondary }]}>
+                  <User size={20} color={theme.surface} />
+                </View>
+              </View>
+              <View style={styles.userDetails}>
+                <Text style={[styles.userName, { color: theme.text, fontSize: theme.fontSizes.medium }]}>
+                  Guest User
+                </Text>
+                <Text style={[styles.userRole, { color: theme.textSecondary, fontSize: theme.fontSizes.small }]}>
+                  Limited Access
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Menu Items */}
           <View style={styles.menuItems}>
             <TouchableOpacity 
@@ -620,6 +669,45 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontWeight: '600' as const,
+  },
+  userInfoSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  userAvatar: {
+    width: 48,
+    height: 48,
+  },
+  avatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  avatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+  },
+  userDetails: {
+    flex: 1,
+  },
+  userName: {
+    fontWeight: '600' as const,
+    marginBottom: 2,
+  },
+  userRole: {
+    fontWeight: '500' as const,
+    textTransform: 'capitalize' as const,
   },
   menuItems: {
     flex: 1,
