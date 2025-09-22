@@ -54,11 +54,15 @@ export default function MainScreen() {
     }
   }, [isAuthenticated, isGuest]);
 
-  // Load calculators only once on mount
+  // Load calculators only once on mount - with delay to prevent hydration timeout
   useEffect(() => {
-    if (reloadCalculators) {
-      reloadCalculators();
-    }
+    const timer = setTimeout(() => {
+      if (reloadCalculators) {
+        reloadCalculators();
+      }
+    }, 100); // Small delay to allow hydration to complete
+    
+    return () => clearTimeout(timer);
   }, [reloadCalculators]);
 
   // Sync unit system from settings to calculators context

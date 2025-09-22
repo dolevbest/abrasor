@@ -7,33 +7,50 @@ import { calculators as defaultCalculators } from '@/utils/calculators';
 export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   const [currentUnitSystem, setCurrentUnitSystem] = useState<UnitSystem>('metric');
   const [hasTimedOut, setHasTimedOut] = useState(false);
+  const [queryEnabled, setQueryEnabled] = useState(false);
+  
+  // Enable query after a short delay to prevent hydration timeout
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setQueryEnabled(true);
+    }, 500); // 500ms delay to allow hydration to complete
+    
+    return () => clearTimeout(timer);
+  }, []);
   
   // Fetch calculators from database
-  const calculatorsQuery = trpc.calculators.getAll.useQuery(undefined, {
-    retry: 1,
+  const calculatorsQuery = trpc.calculators.getAll.useQuery({
+    retry: false, // Disable retries to prevent hanging
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
-    timeout: 10000, // 10 second timeout
-    onError: (error) => {
-      console.error('❌ tRPC calculators query error:', error);
+    enabled: queryEnabled, // Only enable after delay
+    onError: (error: any) => {
+      if (error && typeof error === 'object') {
+        console.error('❌ tRPC calculators query error:', error);
+      }
+      setHasTimedOut(true); // Set timeout on error
     },
-    onSuccess: (data) => {
-      console.log('✅ tRPC calculators query success:', data?.length || 0, 'calculators');
+    onSuccess: (data: any) => {
+      if (data && Array.isArray(data)) {
+        console.log('✅ tRPC calculators query success:', data.length, 'calculators');
+      }
       setHasTimedOut(false);
     },
   });
   
-  // Set timeout fallback
+  // Set timeout fallback - shorter timeout to prevent hydration issues
   useEffect(() => {
+    if (!queryEnabled) return; // Don't start timeout until query is enabled
+    
     const timer = setTimeout(() => {
       if (calculatorsQuery.isLoading) {
         console.log('⏰ Query timeout - falling back to default calculators');
         setHasTimedOut(true);
       }
-    }, 8000); // 8 second fallback
+    }, 3000); // 3 second fallback to prevent hydration timeout
     
     return () => clearTimeout(timer);
-  }, [calculatorsQuery.isLoading]);
+  }, [calculatorsQuery.isLoading, queryEnabled]);
   
   const backendFailed = calculatorsQuery.isError || hasTimedOut;
   
@@ -50,17 +67,27 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
 
   // Use database calculators if available, fallback to defaults
   const calculators = useMemo(() => {
+    if (!queryEnabled) {
+      // Before query is enabled, show default calculators to prevent empty state
+      console.log('⏳ Query not enabled yet, using default calculators:', defaultCalculators.length, 'calculators available');
+      return defaultCalculators;
+    }
+    
     if (calculatorsQuery.data && calculatorsQuery.data.length > 0) {
       console.log('✅ Using database calculators:', calculatorsQuery.data.length, 'calculators available');
       return calculatorsQuery.data;
-    } else if (backendFailed) {
-      console.log('⚠️ Backend failed, using default calculators:', defaultCalculators.length, 'calculators available');
+    } else if (backendFailed || hasTimedOut) {
+      console.log('⚠️ Backend failed or timed out, using default calculators:', defaultCalculators.length, 'calculators available');
+      return defaultCalculators;
+    } else if (!calculatorsQuery.isLoading) {
+      // If not loading and no data, use defaults
+      console.log('⚠️ No data and not loading, using default calculators:', defaultCalculators.length, 'calculators available');
       return defaultCalculators;
     } else {
-      console.log('⏳ No data yet, using empty array');
-      return [];
+      console.log('⏳ Still loading, using default calculators temporarily:', defaultCalculators.length, 'calculators available');
+      return defaultCalculators;
     }
-  }, [calculatorsQuery.data, backendFailed]);
+  }, [calculatorsQuery.data, calculatorsQuery.isLoading, backendFailed, hasTimedOut, queryEnabled]);
 
   // Get unique categories
   const categories = useMemo(() => {
@@ -101,8 +128,11 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     calculators.filter(c => c.categories.includes(category)), [calculators]);
   
   const updateUnitSystem = useCallback((unitSystem: UnitSystem) => {
-    if (unitSystem && typeof unitSystem === 'string' && unitSystem.trim() && unitSystem.length <= 20 && (unitSystem === 'metric' || unitSystem === 'imperial')) {
-      setCurrentUnitSystem(unitSystem);
+    if (!unitSystem || typeof unitSystem !== 'string') return;
+    const sanitized = unitSystem.trim();
+    if (!sanitized || sanitized.length > 20) return;
+    if (sanitized === 'metric' || sanitized === 'imperial') {
+      setCurrentUnitSystem(sanitized);
     }
   }, []);
 
@@ -126,7 +156,7 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   return useMemo(() => ({
     calculators,
     categories,
-    isLoading: calculatorsQuery.isLoading && !hasTimedOut,
+    isLoading: queryEnabled && calculatorsQuery.isLoading && !hasTimedOut && !calculatorsQuery.isError,
     backendFailed,
     trackUsage,
     reloadCalculators,
@@ -136,5 +166,5 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     getCalculatorsByCategory,
     updateUnitSystem,
     currentUnitSystem,
-  }), [calculators, categories, calculatorsQuery.isLoading, hasTimedOut, trackUsage, reloadCalculators, refreshCalculators, clearCorruptedCalculators, getCalculatorById, getCalculatorsByCategory, updateUnitSystem, currentUnitSystem, backendFailed]);
+  }), [calculators, categories, calculatorsQuery.isLoading, calculatorsQuery.isError, hasTimedOut, queryEnabled, trackUsage, reloadCalculators, refreshCalculators, clearCorruptedCalculators, getCalculatorById, getCalculatorsByCategory, updateUnitSystem, currentUnitSystem, backendFailed]);
 });
