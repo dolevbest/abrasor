@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Calculator, User, Shield, Bell } from "lucide-react-native";
+import { Calculator, User, Shield, Bell, Menu } from "lucide-react-native";
 import React, { useEffect } from "react";
 import { View, Text, StyleSheet } from "react-native";
 
@@ -51,11 +51,15 @@ export default function TabLayout() {
       <Tabs.Screen
         name="calculators"
         options={{
-          title: "Calculators",
+          headerTitle: () => (
+            <View style={styles.headerTitle}>
+              <AbrasorLogo size={28} />
+            </View>
+          ),
           tabBarIcon: ({ color }) => <Calculator size={24} color={color} />,
           headerLeft: () => (
             <View style={styles.headerLeft}>
-              <AbrasorLogo size={28} />
+              <Menu size={24} color={theme.headerText} />
             </View>
           ),
           headerRight: () => (
@@ -106,6 +110,11 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     marginRight: 16,
+  },
+  headerTitle: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   badge: {
     position: 'absolute',
