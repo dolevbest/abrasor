@@ -149,6 +149,9 @@ export function initDatabase() {
   // Insert default admin user if not exists
   insertDefaultAdmin();
   
+  // Initialize default calculators if none exist
+  initializeDefaultCalculators();
+  
   return db;
 }
 
@@ -396,6 +399,62 @@ function insertDefaultAdmin() {
       false,
       new Date().toISOString()
     );
+  }
+}
+
+// Initialize default calculators if none exist
+function initializeDefaultCalculators() {
+  try {
+    const calculatorCount = db.prepare('SELECT COUNT(*) as count FROM calculators').get() as { count: number };
+    
+    if (calculatorCount.count === 0) {
+      console.log('📦 No calculators found, initializing with defaults...');
+      
+      const insertStmt = db.prepare(`
+        INSERT INTO calculators (
+          id, name, short_name, description, categories, inputs, formula,
+          result_unit_metric, result_unit_imperial, enabled, usage_count, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      
+      const now = new Date().toISOString();
+      let insertedCount = 0;
+      
+      for (const calc of defaultCalculators) {
+        try {
+          if (!calc || !calc.id?.trim() || calc.id.length > 100) {
+            console.error('❌ Invalid calculator data:', calc?.id || 'unknown');
+            continue;
+          }
+          
+          const dbCalc = calculatorToDbCalculator(calc, { type: 'function', value: 'calculate' });
+          insertStmt.run(
+            dbCalc.id,
+            dbCalc.name,
+            dbCalc.short_name,
+            dbCalc.description,
+            dbCalc.categories,
+            dbCalc.inputs,
+            dbCalc.formula,
+            dbCalc.result_unit_metric,
+            dbCalc.result_unit_imperial,
+            dbCalc.enabled ? 1 : 0,
+            dbCalc.usage_count,
+            now,
+            now
+          );
+          insertedCount++;
+        } catch (insertError) {
+          console.error('❌ Failed to insert calculator:', calc?.id || 'unknown', insertError);
+        }
+      }
+      
+      console.log('✅ Initialized', insertedCount, 'default calculators');
+    } else {
+      console.log('📊 Found', calculatorCount.count, 'calculators in database');
+    }
+  } catch (error) {
+    console.error('❌ Failed to initialize default calculators:', error);
   }
 }
 

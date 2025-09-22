@@ -19,7 +19,9 @@ export const getCalculatorsProcedure = publicProcedure
       // If no calculators exist, initialize with defaults
       if (dbCalculators.length === 0) {
         console.log('⚠️ No calculators found in database, initializing with defaults...');
-        return initializeDefaultCalculators(db);
+        const initialized = initializeDefaultCalculators(db);
+        console.log('✅ Initialized', initialized.length, 'default calculators');
+        return initialized;
       }
       
       // Try to convert existing calculators
@@ -50,7 +52,9 @@ export const getCalculatorsProcedure = publicProcedure
         console.log('⚠️ All calculators are corrupted, reinitializing with defaults...');
         // Clear corrupted data and reinitialize
         db.prepare('DELETE FROM calculators').run();
-        return initializeDefaultCalculators(db);
+        const reinitialized = initializeDefaultCalculators(db);
+        console.log('✅ Reinitialized', reinitialized.length, 'default calculators');
+        return reinitialized;
       }
       
       console.log('✅ Returning', convertedCalculators.length, 'valid calculators');
@@ -59,18 +63,9 @@ export const getCalculatorsProcedure = publicProcedure
     } catch (error) {
       console.error('❌ Critical error in getCalculatorsProcedure:', error);
       
-      // As a last resort, try to reinitialize with defaults
-      try {
-        console.log('🔄 Attempting emergency reinitialize...');
-        db.prepare('DELETE FROM calculators').run();
-        return initializeDefaultCalculators(db);
-      } catch (emergencyError) {
-        console.error('❌ Emergency reinitialize failed:', emergencyError);
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to fetch calculators and emergency recovery failed'
-        });
-      }
+      // As a last resort, return default calculators directly
+      console.log('🔄 Returning default calculators as fallback...');
+      return defaultCalculators;
     }
   });
 
@@ -78,52 +73,62 @@ export const getCalculatorsProcedure = publicProcedure
 function initializeDefaultCalculators(db: any) {
   console.log('📦 Initializing with default calculators, count:', defaultCalculators.length);
   
-  const insertStmt = db.prepare(`
-    INSERT INTO calculators (
-      id, name, short_name, description, categories, inputs, formula,
-      result_unit_metric, result_unit_imperial, enabled, usage_count, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  
-  const now = new Date().toISOString();
-  let insertedCount = 0;
-  
-  for (const calc of defaultCalculators) {
-    try {
-      // Validate calculator data
-      if (!calc || !calc.id?.trim() || calc.id.length > 100) {
-        console.error('❌ Invalid calculator data:', calc?.id || 'unknown');
-        continue;
+  try {
+    const insertStmt = db.prepare(`
+      INSERT OR REPLACE INTO calculators (
+        id, name, short_name, description, categories, inputs, formula,
+        result_unit_metric, result_unit_imperial, enabled, usage_count, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const now = new Date().toISOString();
+    let insertedCount = 0;
+    
+    for (const calc of defaultCalculators) {
+      try {
+        // Validate calculator data
+        if (!calc || !calc.id?.trim() || calc.id.length > 100) {
+          console.error('❌ Invalid calculator data:', calc?.id || 'unknown');
+          continue;
+        }
+        
+        const dbCalc = calculatorToDbCalculator(calc, { type: 'function', value: 'calculate' });
+        console.log('➕ Inserting calculator:', calc.id, calc.name);
+        insertStmt.run(
+          dbCalc.id,
+          dbCalc.name,
+          dbCalc.short_name,
+          dbCalc.description,
+          dbCalc.categories,
+          dbCalc.inputs,
+          dbCalc.formula,
+          dbCalc.result_unit_metric,
+          dbCalc.result_unit_imperial,
+          dbCalc.enabled ? 1 : 0,
+          dbCalc.usage_count,
+          now,
+          now
+        );
+        insertedCount++;
+      } catch (insertError) {
+        console.error('❌ Failed to insert calculator:', calc?.id || 'unknown', insertError);
       }
-      
-      const dbCalc = calculatorToDbCalculator(calc, { type: 'function', value: 'calculate' });
-      console.log('➕ Inserting calculator:', calc.id, calc.name);
-      insertStmt.run(
-        dbCalc.id,
-        dbCalc.name,
-        dbCalc.short_name,
-        dbCalc.description,
-        dbCalc.categories,
-        dbCalc.inputs,
-        dbCalc.formula,
-        dbCalc.result_unit_metric,
-        dbCalc.result_unit_imperial,
-        dbCalc.enabled ? 1 : 0,
-        dbCalc.usage_count,
-        now,
-        now
-      );
-      insertedCount++;
-    } catch (insertError) {
-      console.error('❌ Failed to insert calculator:', calc?.id || 'unknown', insertError);
     }
+    
+    console.log('✅ Inserted', insertedCount, 'calculators');
+    
+    // Verify insertion by querying the database
+    const verifyQuery = db.prepare('SELECT COUNT(*) as count FROM calculators WHERE enabled = 1').get() as { count: number };
+    console.log('🔍 Verification: Found', verifyQuery.count, 'enabled calculators in database');
+    
+    // Return the default calculators directly to avoid another DB round trip
+    console.log('✅ Returning', defaultCalculators.length, 'default calculators');
+    return defaultCalculators;
+  } catch (error) {
+    console.error('❌ Failed to initialize default calculators:', error);
+    // Return default calculators even if DB insertion fails
+    return defaultCalculators;
   }
-  
-  console.log('✅ Inserted', insertedCount, 'calculators');
-  
-  // Return the default calculators directly to avoid another DB round trip
-  console.log('✅ Returning', defaultCalculators.length, 'default calculators');
-  return defaultCalculators;
 }
 
 // Get calculator by ID (public)
