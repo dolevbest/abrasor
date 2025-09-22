@@ -76,16 +76,19 @@ export const getCalculatorsProcedure = publicProcedure
       }
       
       console.log('✅ Found', dbCalculators.length, 'calculators in database');
-      const convertedCalculators = dbCalculators.map(dbCalc => {
+      const convertedCalculators: any[] = [];
+      
+      for (const dbCalc of dbCalculators) {
         try {
           const converted = dbCalculatorToCalculator(dbCalc);
           console.log('✅ Converted calculator:', dbCalc.id, dbCalc.name);
-          return converted;
+          convertedCalculators.push(converted);
         } catch (conversionError) {
           console.error('❌ Failed to convert calculator:', dbCalc.id, conversionError);
-          return null;
+          console.log('🗑️ Skipping corrupted calculator:', dbCalc.id);
+          // Skip corrupted calculators instead of returning null
         }
-      }).filter(calc => calc !== null);
+      }
       
       console.log('✅ Returning', convertedCalculators.length, 'converted calculators');
       return convertedCalculators;

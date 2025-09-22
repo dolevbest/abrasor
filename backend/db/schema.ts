@@ -471,7 +471,7 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Calculator {
   let categories: string[] = [];
   let inputs: any[] = [];
   
-  // Parse categories with robust error handling
+  // Parse categories with ultra-robust error handling
   try {
     if (dbCalc.categories) {
       if (Array.isArray(dbCalc.categories)) {
@@ -480,41 +480,47 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Calculator {
         const trimmed = dbCalc.categories.trim();
         
         // Handle empty or invalid strings
-        if (!trimmed || trimmed === 'null' || trimmed === 'undefined') {
+        if (!trimmed || trimmed === 'null' || trimmed === 'undefined' || trimmed === '') {
           categories = [];
         } else {
-          // Clean the string more aggressively
-          let cleaned = trimmed
-            .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
-            .replace(/\\n/g, '') // Remove escaped newlines
-            .replace(/\\r/g, '') // Remove escaped carriage returns
-            .replace(/\\t/g, '') // Remove escaped tabs
-            .replace(/\\'/g, "'") // Fix escaped quotes
-            .replace(/\\"/g, '"') // Fix escaped double quotes
-            .trim();
-          
-          // Check if it looks like valid JSON array
-          if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
-            try {
-              const parsed = JSON.parse(cleaned);
-              categories = Array.isArray(parsed) ? parsed : [];
-            } catch (parseError) {
-              console.warn('⚠️ JSON parse failed for categories, attempting manual extraction:', cleaned.substring(0, 100));
-              // Try manual extraction as fallback
-              const match = cleaned.match(/\[([^\]]+)\]/);
-              if (match) {
-                const elements = match[1]
-                  .split(',')
-                  .map(s => s.trim().replace(/^["']|["']$/g, ''))
-                  .filter(e => e.length > 0);
-                categories = elements;
-              } else {
-                categories = [];
-              }
-            }
-          } else {
-            console.warn('⚠️ Invalid categories format for calculator', dbCalc.id, '- not a JSON array');
+          // Check for HTML content or other non-JSON content
+          if (trimmed.includes('<') || trimmed.includes('>') || !trimmed.startsWith('[')) {
+            console.warn('⚠️ Detected corrupted categories data for calculator', dbCalc.id, '- contains HTML or invalid format');
             categories = [];
+          } else {
+            // Clean the string more aggressively
+            let cleaned = trimmed
+              .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
+              .replace(/\\n/g, '') // Remove escaped newlines
+              .replace(/\\r/g, '') // Remove escaped carriage returns
+              .replace(/\\t/g, '') // Remove escaped tabs
+              .replace(/\\'/g, "'") // Fix escaped quotes
+              .replace(/\\"/g, '"') // Fix escaped double quotes
+              .trim();
+            
+            // Check if it looks like valid JSON array
+            if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+              try {
+                const parsed = JSON.parse(cleaned);
+                categories = Array.isArray(parsed) ? parsed.filter(c => typeof c === 'string' && c.trim()) : [];
+              } catch (parseError) {
+                console.warn('⚠️ JSON parse failed for categories, attempting manual extraction:', cleaned.substring(0, 100));
+                // Try manual extraction as fallback
+                const match = cleaned.match(/\[([^\]]+)\]/);
+                if (match) {
+                  const elements = match[1]
+                    .split(',')
+                    .map(s => s.trim().replace(/^["']|["']$/g, ''))
+                    .filter(e => e.length > 0 && typeof e === 'string');
+                  categories = elements;
+                } else {
+                  categories = [];
+                }
+              }
+            } else {
+              console.warn('⚠️ Invalid categories format for calculator', dbCalc.id, '- not a JSON array');
+              categories = [];
+            }
           }
         }
       }
@@ -524,7 +530,7 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Calculator {
     categories = [];
   }
   
-  // Parse inputs with robust error handling
+  // Parse inputs with ultra-robust error handling
   try {
     if (dbCalc.inputs) {
       if (Array.isArray(dbCalc.inputs)) {
@@ -533,31 +539,37 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Calculator {
         const trimmed = dbCalc.inputs.trim();
         
         // Handle empty or invalid strings
-        if (!trimmed || trimmed === 'null' || trimmed === 'undefined') {
+        if (!trimmed || trimmed === 'null' || trimmed === 'undefined' || trimmed === '') {
           inputs = [];
         } else {
-          // Clean the string more aggressively
-          let cleaned = trimmed
-            .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
-            .replace(/\\n/g, '') // Remove escaped newlines
-            .replace(/\\r/g, '') // Remove escaped carriage returns
-            .replace(/\\t/g, '') // Remove escaped tabs
-            .replace(/\\'/g, "'") // Fix escaped quotes
-            .replace(/\\"/g, '"') // Fix escaped double quotes
-            .trim();
-          
-          // Check if it looks like valid JSON array
-          if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
-            try {
-              const parsed = JSON.parse(cleaned);
-              inputs = Array.isArray(parsed) ? parsed : [];
-            } catch (parseError) {
-              console.warn('⚠️ JSON parse failed for inputs, using empty array');
+          // Check for HTML content or other non-JSON content
+          if (trimmed.includes('<') || trimmed.includes('>') || !trimmed.startsWith('[')) {
+            console.warn('⚠️ Detected corrupted inputs data for calculator', dbCalc.id, '- contains HTML or invalid format');
+            inputs = [];
+          } else {
+            // Clean the string more aggressively
+            let cleaned = trimmed
+              .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
+              .replace(/\\n/g, '') // Remove escaped newlines
+              .replace(/\\r/g, '') // Remove escaped carriage returns
+              .replace(/\\t/g, '') // Remove escaped tabs
+              .replace(/\\'/g, "'") // Fix escaped quotes
+              .replace(/\\"/g, '"') // Fix escaped double quotes
+              .trim();
+            
+            // Check if it looks like valid JSON array
+            if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+              try {
+                const parsed = JSON.parse(cleaned);
+                inputs = Array.isArray(parsed) ? parsed : [];
+              } catch (parseError) {
+                console.warn('⚠️ JSON parse failed for inputs, using empty array');
+                inputs = [];
+              }
+            } else {
+              console.warn('⚠️ Invalid inputs format for calculator', dbCalc.id, '- not a JSON array');
               inputs = [];
             }
-          } else {
-            console.warn('⚠️ Invalid inputs format for calculator', dbCalc.id, '- not a JSON array');
-            inputs = [];
           }
         }
       }
