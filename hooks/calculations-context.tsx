@@ -38,6 +38,38 @@ export const [CalculationsProvider, useCalculations] = createContextHook<Calcula
   const { user, isGuest } = useAuth();
   const [guestCalculations, setGuestCalculations] = useState<SavedCalculation[]>([]);
   const [isLoadingGuest, setIsLoadingGuest] = useState(true);
+
+  const safeJsonParse = (jsonString: string | null, fallback: any = null) => {
+    if (!jsonString || typeof jsonString !== 'string') {
+      return fallback;
+    }
+    
+    const trimmed = jsonString.trim();
+    if (!trimmed || trimmed === 'undefined' || trimmed === 'null') {
+      return fallback;
+    }
+    
+    // Check for common corruption patterns
+    if (trimmed.includes('object Object') || trimmed.includes('[object') || 
+        trimmed.includes('NaN') || trimmed.includes('Infinity')) {
+      console.warn('⚠️ Detected corrupted JSON data:', trimmed.substring(0, 50));
+      return fallback;
+    }
+    
+    // Validate JSON structure
+    if (!((trimmed.startsWith('{') && trimmed.endsWith('}')) || 
+          (trimmed.startsWith('[') && trimmed.endsWith(']')))) {
+      console.warn('⚠️ Invalid JSON structure:', trimmed.substring(0, 50));
+      return fallback;
+    }
+    
+    try {
+      return JSON.parse(trimmed);
+    } catch (error) {
+      console.error('❌ JSON parse error:', error, 'Data:', trimmed.substring(0, 100));
+      return fallback;
+    }
+  };
   
   // Backend queries for authenticated users
   const savedCalculationsQuery = trpc.calculations.getSaved.useQuery(undefined, {
@@ -61,19 +93,15 @@ export const [CalculationsProvider, useCalculations] = createContextHook<Calcula
     try {
       const stored = await AsyncStorage.getItem('guestCalculations');
       if (stored && stored.trim()) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            const calculations = parsed.map((calc: any) => ({
-              ...calc,
-              savedAt: new Date(calc.savedAt)
-            }));
-            setGuestCalculations(calculations);
-          } else {
-            throw new Error('Invalid calculations data format');
-          }
-        } catch (error) {
-          console.error('Failed to parse guest calculations:', error);
+        const parsed = safeJsonParse(stored, []);
+        if (Array.isArray(parsed)) {
+          const calculations = parsed.map((calc: any) => ({
+            ...calc,
+            savedAt: new Date(calc.savedAt)
+          }));
+          setGuestCalculations(calculations);
+        } else {
+          console.error('Failed to parse guest calculations, clearing corrupted data');
           await AsyncStorage.removeItem('guestCalculations');
           setGuestCalculations([]);
         }
@@ -95,7 +123,11 @@ export const [CalculationsProvider, useCalculations] = createContextHook<Calcula
       };
       const updated = [newCalculation, ...guestCalculations];
       setGuestCalculations(updated);
-      await AsyncStorage.setItem('guestCalculations', JSON.stringify(updated));
+      try {
+        await AsyncStorage.setItem('guestCalculations', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Failed to save guest calculations:', error);
+      }
     } else {
       // Save to backend for authenticated users
       await saveCalculationMutation.mutateAsync(calculation);
@@ -108,7 +140,11 @@ export const [CalculationsProvider, useCalculations] = createContextHook<Calcula
       // Delete from AsyncStorage for guests
       const updated = guestCalculations.filter(calc => calc.id !== id);
       setGuestCalculations(updated);
-      await AsyncStorage.setItem('guestCalculations', JSON.stringify(updated));
+      try {
+        await AsyncStorage.setItem('guestCalculations', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Failed to save guest calculations:', error);
+      }
     } else {
       // Delete from backend for authenticated users
       await deleteCalculationMutation.mutateAsync({ id });

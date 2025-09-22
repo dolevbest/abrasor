@@ -21,6 +21,38 @@ export const [SettingsProvider, useSettings] = createContextHook<SettingsState>(
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isTogglingUnit, setIsTogglingUnit] = useState(false);
 
+  const safeJsonParse = (jsonString: string | null, fallback: any = null) => {
+    if (!jsonString || typeof jsonString !== 'string') {
+      return fallback;
+    }
+    
+    const trimmed = jsonString.trim();
+    if (!trimmed || trimmed === 'undefined' || trimmed === 'null') {
+      return fallback;
+    }
+    
+    // Check for common corruption patterns
+    if (trimmed.includes('object Object') || trimmed.includes('[object') || 
+        trimmed.includes('NaN') || trimmed.includes('Infinity')) {
+      console.warn('⚠️ Detected corrupted JSON data:', trimmed.substring(0, 50));
+      return fallback;
+    }
+    
+    // Validate JSON structure
+    if (!((trimmed.startsWith('{') && trimmed.endsWith('}')) || 
+          (trimmed.startsWith('[') && trimmed.endsWith(']')))) {
+      console.warn('⚠️ Invalid JSON structure:', trimmed.substring(0, 50));
+      return fallback;
+    }
+    
+    try {
+      return JSON.parse(trimmed);
+    } catch (error) {
+      console.error('❌ JSON parse error:', error, 'Data:', trimmed.substring(0, 100));
+      return fallback;
+    }
+  };
+
   // tRPC queries and mutations
   const notificationsQuery = trpc.settings.notifications.getAll.useQuery({
     enabled: !!user,
@@ -96,15 +128,11 @@ export const [SettingsProvider, useSettings] = createContextHook<SettingsState>(
     try {
       const stored = await AsyncStorage.getItem('notifications');
       if (stored && stored.trim()) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            setNotifications(parsed);
-          } else {
-            throw new Error('Invalid notifications data format');
-          }
-        } catch (error) {
-          console.error('Failed to parse stored notifications:', error);
+        const parsed = safeJsonParse(stored, []);
+        if (Array.isArray(parsed)) {
+          setNotifications(parsed);
+        } else {
+          console.error('Failed to parse stored notifications, clearing corrupted data');
           await AsyncStorage.removeItem('notifications');
           setNotifications([]);
         }
@@ -172,7 +200,11 @@ export const [SettingsProvider, useSettings] = createContextHook<SettingsState>(
         n.id === id ? { ...n, read: true } : n
       );
       setNotifications(updated);
-      await AsyncStorage.setItem('notifications', JSON.stringify(updated));
+      try {
+        await AsyncStorage.setItem('notifications', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Failed to save notifications:', error);
+      }
     }
   }, [user, markReadMutation, notifications]);
 
@@ -201,7 +233,11 @@ export const [SettingsProvider, useSettings] = createContextHook<SettingsState>(
       // Fallback for guest users
       const updated = notifications.filter(n => n.id !== id);
       setNotifications(updated);
-      await AsyncStorage.setItem('notifications', JSON.stringify(updated));
+      try {
+        await AsyncStorage.setItem('notifications', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Failed to save notifications:', error);
+      }
     }
   }, [user, deleteNotificationMutation, notifications]);
 

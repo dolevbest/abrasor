@@ -43,6 +43,38 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     loadUser();
   }, []);
 
+  const safeJsonParse = (jsonString: string | null, fallback: any = null) => {
+    if (!jsonString || typeof jsonString !== 'string') {
+      return fallback;
+    }
+    
+    const trimmed = jsonString.trim();
+    if (!trimmed || trimmed === 'undefined' || trimmed === 'null') {
+      return fallback;
+    }
+    
+    // Check for common corruption patterns
+    if (trimmed.includes('object Object') || trimmed.includes('[object') || 
+        trimmed.includes('NaN') || trimmed.includes('Infinity')) {
+      console.warn('⚠️ Detected corrupted JSON data:', trimmed.substring(0, 50));
+      return fallback;
+    }
+    
+    // Validate JSON structure
+    if (!((trimmed.startsWith('{') && trimmed.endsWith('}')) || 
+          (trimmed.startsWith('[') && trimmed.endsWith(']')))) {
+      console.warn('⚠️ Invalid JSON structure:', trimmed.substring(0, 50));
+      return fallback;
+    }
+    
+    try {
+      return JSON.parse(trimmed);
+    } catch (error) {
+      console.error('❌ JSON parse error:', error, 'Data:', trimmed.substring(0, 100));
+      return fallback;
+    }
+  };
+
   const clearCorruptedData = async () => {
     try {
       console.log('🧹 Clearing potentially corrupted AsyncStorage data...');
@@ -77,33 +109,23 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       
       if (rememberMeEnabled === 'true' && storedUser) {
         // Auto-login if remember me was enabled
-        try {
-          console.log('🔐 Attempting to parse stored user data...');
-          const parsedUser = JSON.parse(storedUser);
-          if (parsedUser && typeof parsedUser === 'object' && parsedUser.id) {
-            console.log('✅ Successfully loaded user:', parsedUser.email);
-            setUser(parsedUser);
-          } else {
-            throw new Error('Invalid user data format - missing required fields');
-          }
-        } catch (error) {
-          console.error('❌ Failed to parse stored user data:', error);
+        const parsedUser = safeJsonParse(storedUser);
+        if (parsedUser && typeof parsedUser === 'object' && parsedUser.id) {
+          console.log('✅ Successfully loaded user:', parsedUser.email);
+          setUser(parsedUser);
+        } else {
+          console.error('❌ Invalid user data format - missing required fields');
           await AsyncStorage.removeItem('user');
           await AsyncStorage.removeItem('rememberMe');
         }
       } else if (storedUser && rememberMeEnabled !== 'false') {
         // For backward compatibility, keep user logged in if rememberMe is not explicitly false
-        try {
-          console.log('🔐 Attempting backward compatibility user load...');
-          const parsedUser = JSON.parse(storedUser);
-          if (parsedUser && typeof parsedUser === 'object' && parsedUser.id) {
-            console.log('✅ Successfully loaded user (backward compatibility):', parsedUser.email);
-            setUser(parsedUser);
-          } else {
-            throw new Error('Invalid user data format - missing required fields');
-          }
-        } catch (error) {
-          console.error('❌ Failed to parse stored user data (backward compatibility):', error);
+        const parsedUser = safeJsonParse(storedUser);
+        if (parsedUser && typeof parsedUser === 'object' && parsedUser.id) {
+          console.log('✅ Successfully loaded user (backward compatibility):', parsedUser.email);
+          setUser(parsedUser);
+        } else {
+          console.error('❌ Invalid user data format - missing required fields');
           await AsyncStorage.removeItem('user');
           await AsyncStorage.removeItem('rememberMe');
         }
@@ -199,15 +221,11 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       // Store email in mock email system
       const emails = await AsyncStorage.getItem('sentEmails');
       let sentEmails = [];
-      try {
-        if (emails && emails.trim()) {
-          const parsed = JSON.parse(emails);
-          sentEmails = Array.isArray(parsed) ? parsed : [];
-        }
-      } catch (error) {
-        console.error('Failed to parse sent emails:', error);
+      const parsed = safeJsonParse(emails, []);
+      sentEmails = Array.isArray(parsed) ? parsed : [];
+      if (!Array.isArray(parsed) && emails) {
+        console.error('Failed to parse sent emails, clearing corrupted data');
         await AsyncStorage.removeItem('sentEmails');
-        sentEmails = [];
       }
       
       const emailRecord = {
@@ -227,15 +245,11 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       // Add to system logs
       const logs = await AsyncStorage.getItem('systemLogs');
       let systemLogs = [];
-      try {
-        if (logs && logs.trim()) {
-          const parsed = JSON.parse(logs);
-          systemLogs = Array.isArray(parsed) ? parsed : [];
-        }
-      } catch (error) {
-        console.error('Failed to parse system logs:', error);
+      const parsed = safeJsonParse(logs, []);
+      systemLogs = Array.isArray(parsed) ? parsed : [];
+      if (!Array.isArray(parsed) && logs) {
+        console.error('Failed to parse system logs, clearing corrupted data');
         await AsyncStorage.removeItem('systemLogs');
-        systemLogs = [];
       }
       systemLogs.unshift({
         id: Date.now().toString(),

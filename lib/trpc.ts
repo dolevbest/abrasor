@@ -87,13 +87,16 @@ export const trpcClient = trpc.createClient({
           if (storedUser && storedUser.trim()) {
             try {
               // Validate JSON before parsing
-              if (!storedUser.startsWith('{') || !storedUser.endsWith('}')) {
+              const trimmed = storedUser.trim();
+              if (!trimmed || trimmed === 'undefined' || trimmed === 'null' ||
+                  trimmed.includes('object Object') || trimmed.includes('[object') ||
+                  !trimmed.startsWith('{') || !trimmed.endsWith('}')) {
                 console.warn('⚠️ Invalid user data format in AsyncStorage');
                 await clearCorruptedData();
                 return {};
               }
               
-              const user = JSON.parse(storedUser);
+              const user = JSON.parse(trimmed);
               if (user && typeof user === 'object' && user.id) {
                 console.log('🔑 Using auth token for user:', user.email);
                 return {
@@ -105,6 +108,7 @@ export const trpcClient = trpc.createClient({
               }
             } catch (parseError) {
               console.error('❌ Failed to parse stored user for auth:', parseError);
+              console.error('❌ Corrupted user data:', storedUser?.substring(0, 100));
               // Clear all potentially corrupted data
               await clearCorruptedData();
             }
@@ -157,6 +161,10 @@ export const trpcClient = trpc.createClient({
             
             // Try to parse as JSON to see if it's a valid error response
             try {
+              if (!responseText.trim() || responseText.includes('object Object') || 
+                  responseText.includes('[object') || responseText.includes('Unexpected character')) {
+                throw new Error('Invalid JSON response format');
+              }
               const errorData = JSON.parse(responseText);
               console.error('❌ Server error response:', errorData);
               
@@ -178,15 +186,23 @@ export const trpcClient = trpc.createClient({
             // Check if successful response is valid JSON for superjson compatibility
             if (responseText) {
               try {
+                // Validate response before parsing
+                const trimmed = responseText.trim();
+                if (!trimmed || trimmed.includes('object Object') || trimmed.includes('[object') ||
+                    trimmed.includes('Unexpected character') || trimmed.includes('NaN') ||
+                    trimmed.includes('Infinity')) {
+                  throw new Error('Invalid JSON response format detected');
+                }
+                
                 // Try to parse the response to catch JSON errors early
-                JSON.parse(responseText);
+                JSON.parse(trimmed);
                 console.log('✅ Response is valid JSON');
               } catch (jsonError) {
                 console.error('❌ Response is not valid JSON:', jsonError);
                 console.error('❌ Invalid JSON response:', responseText.substring(0, 500));
                 
                 // Check for specific JSON parse error patterns
-                if (responseText.includes('Unexpected character: o') || responseText.includes('Unexpected character')) {
+                if (responseText.includes('Unexpected character') || responseText.includes('object Object')) {
                   console.error('❌ Detected JSON parse error - likely corrupted data');
                   // Clear corrupted AsyncStorage data
                   await clearCorruptedData();
