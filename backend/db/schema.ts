@@ -552,15 +552,21 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Calculator {
             console.warn('⚠️ Detected HTML in categories data for calculator', dbCalc.id);
             categories = [];
           } else if (!trimmed.startsWith('[') && !trimmed.startsWith('"')) {
-            console.warn('⚠️ Invalid categories format for calculator', dbCalc.id, '- not JSON');
+            console.warn('⚠️ Invalid categories format for calculator', dbCalc.id, '- not JSON. Content:', trimmed.substring(0, 50));
             categories = [];
           } else {
             try {
               console.log('📋 Attempting to parse categories JSON...');
-              const parsed = JSON.parse(trimmed);
-              console.log('✅ Successfully parsed categories:', parsed);
-              categories = Array.isArray(parsed) ? parsed.filter(c => typeof c === 'string' && c.trim()) : [];
-              console.log('✅ Filtered categories:', categories);
+              // Check for common corruption patterns
+              if (trimmed.includes('object Object') || trimmed.includes('[object') || trimmed.includes('undefined') || trimmed.includes('null')) {
+                console.warn('⚠️ Detected corrupted categories data:', trimmed.substring(0, 100));
+                categories = [];
+              } else {
+                const parsed = JSON.parse(trimmed);
+                console.log('✅ Successfully parsed categories:', parsed);
+                categories = Array.isArray(parsed) ? parsed.filter(c => typeof c === 'string' && c.trim()) : [];
+                console.log('✅ Filtered categories:', categories);
+              }
             } catch (parseError) {
               console.warn('⚠️ JSON parse failed for categories:', parseError);
               console.warn('⚠️ Failed string preview:', trimmed.substring(0, 100));
@@ -615,14 +621,20 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Calculator {
             console.warn('⚠️ Detected HTML in inputs data for calculator', dbCalc.id);
             inputs = [];
           } else if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) {
-            console.warn('⚠️ Invalid inputs format for calculator', dbCalc.id, '- not JSON');
+            console.warn('⚠️ Invalid inputs format for calculator', dbCalc.id, '- not JSON. Content:', trimmed.substring(0, 50));
             inputs = [];
           } else {
             try {
               console.log('📋 Attempting to parse inputs JSON...');
-              const parsed = JSON.parse(trimmed);
-              console.log('✅ Successfully parsed inputs:', Array.isArray(parsed) ? `Array with ${parsed.length} items` : typeof parsed);
-              inputs = Array.isArray(parsed) ? parsed : [];
+              // Check for common corruption patterns
+              if (trimmed.includes('object Object') || trimmed.includes('[object') || trimmed.includes('undefined') || trimmed.includes('null')) {
+                console.warn('⚠️ Detected corrupted inputs data:', trimmed.substring(0, 100));
+                inputs = [];
+              } else {
+                const parsed = JSON.parse(trimmed);
+                console.log('✅ Successfully parsed inputs:', Array.isArray(parsed) ? `Array with ${parsed.length} items` : typeof parsed);
+                inputs = Array.isArray(parsed) ? parsed : [];
+              }
             } catch (parseError) {
               console.warn('⚠️ JSON parse failed for inputs:', parseError);
               console.warn('⚠️ Failed string preview:', trimmed.substring(0, 100));

@@ -45,6 +45,16 @@ export const getCalculatorsProcedure = publicProcedure
             inputs: typeof dbCalc.inputs === 'string' ? dbCalc.inputs.substring(0, 100) : dbCalc.inputs
           });
           
+          // Pre-check for corrupted data patterns before conversion
+          const categoriesStr = typeof dbCalc.categories === 'string' ? dbCalc.categories : '';
+          const inputsStr = typeof dbCalc.inputs === 'string' ? dbCalc.inputs : '';
+          
+          if (categoriesStr.includes('[object Object]') || inputsStr.includes('[object Object]') ||
+              categoriesStr.includes('object Object') || inputsStr.includes('object Object')) {
+            console.warn('⚠️ Detected [object Object] corruption in calculator:', dbCalc.id);
+            throw new Error('Corrupted object data detected');
+          }
+          
           const converted = dbCalculatorToCalculator(dbCalc);
           console.log('✅ Successfully converted calculator:', dbCalc.id, dbCalc.name);
           console.log('📋 Converted calculator data:', {
