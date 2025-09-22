@@ -44,11 +44,12 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   // Fetch calculators from backend
   const calculatorsQuery = trpc.calculators.getAll.useQuery();
   
-  console.log('Calculators query status:', {
+  console.log('🔍 Calculators query status:', {
     isLoading: calculatorsQuery.isLoading,
     isError: calculatorsQuery.isError,
-    error: calculatorsQuery.error,
-    dataLength: calculatorsQuery.data?.length
+    error: calculatorsQuery.error?.message,
+    dataLength: calculatorsQuery.data?.length,
+    data: calculatorsQuery.data
   });
   
   // Track usage mutation

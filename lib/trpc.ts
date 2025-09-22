@@ -8,18 +8,24 @@ export const trpc = createTRPCReact<AppRouter>();
 
 const getBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_RORK_API_BASE_URL) {
+    console.log('🌐 Using configured base URL:', process.env.EXPO_PUBLIC_RORK_API_BASE_URL);
     return process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
   }
 
-  throw new Error(
-    "No base url found, please set EXPO_PUBLIC_RORK_API_BASE_URL"
-  );
+  // Fallback for development
+  const fallbackUrl = 'https://rork.com';
+  console.log('⚠️ No EXPO_PUBLIC_RORK_API_BASE_URL found, using fallback:', fallbackUrl);
+  return fallbackUrl;
 };
+
+const baseUrl = getBaseUrl();
+const trpcUrl = `${baseUrl}/api/trpc`;
+console.log('🔗 tRPC URL:', trpcUrl);
 
 export const trpcClient = trpc.createClient({
   links: [
     httpLink({
-      url: `${getBaseUrl()}/api/trpc`,
+      url: trpcUrl,
       transformer: superjson,
       async headers() {
         // Get user token from AsyncStorage for authentication

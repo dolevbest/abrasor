@@ -6,8 +6,17 @@ import { createContext } from "./trpc/create-context";
 import { initDatabase } from "./db/schema";
 
 // Initialize database on startup
-initDatabase();
+console.log('🚀 Starting database initialization...');
+const db = initDatabase();
 console.log('✅ Database initialized');
+
+// Test database connection
+try {
+  const testQuery = db.prepare('SELECT COUNT(*) as count FROM calculators').get() as { count: number };
+  console.log('📊 Calculators in database:', testQuery.count);
+} catch (error) {
+  console.error('❌ Database test failed:', error);
+}
 
 // app will be mounted at /api
 const app = new Hono();

@@ -7,14 +7,19 @@ import { TRPCError } from '@trpc/server';
 // Get all calculators (public)
 export const getCalculatorsProcedure = publicProcedure
   .query(() => {
+    console.log('🔍 getCalculatorsProcedure called');
     const db = getDatabase();
     
     try {
       // Check if calculators table has data
+      console.log('📊 Querying calculators table...');
       const dbCalculators = db.prepare('SELECT * FROM calculators WHERE enabled = 1 ORDER BY usage_count DESC').all() as DbCalculator[];
+      console.log('📊 Found', dbCalculators.length, 'enabled calculators in database');
       
       if (dbCalculators.length === 0) {
-        console.log('No calculators found in database, initializing with defaults...');
+        console.log('⚠️ No calculators found in database, initializing with defaults...');
+        console.log('📦 Default calculators count:', defaultCalculators.length);
+        
         // Initialize with default calculators if empty
         const insertStmt = db.prepare(`
           INSERT INTO calculators (
@@ -24,10 +29,12 @@ export const getCalculatorsProcedure = publicProcedure
         `);
         
         const now = new Date().toISOString();
+        let insertedCount = 0;
+        
         for (const calc of defaultCalculators) {
           try {
             const dbCalc = calculatorToDbCalculator(calc, { type: 'function', value: 'calculate' });
-            console.log('Inserting calculator:', calc.id, calc.name);
+            console.log('➕ Inserting calculator:', calc.id, calc.name);
             insertStmt.run(
               dbCalc.id,
               dbCalc.name,
@@ -43,30 +50,47 @@ export const getCalculatorsProcedure = publicProcedure
               now,
               now
             );
+            insertedCount++;
           } catch (insertError) {
-            console.error('Failed to insert calculator:', calc.id, insertError);
+            console.error('❌ Failed to insert calculator:', calc.id, insertError);
           }
         }
         
+        console.log('✅ Inserted', insertedCount, 'calculators');
+        
         // Fetch the newly inserted calculators
         const newDbCalculators = db.prepare('SELECT * FROM calculators WHERE enabled = 1 ORDER BY usage_count DESC').all() as DbCalculator[];
-        console.log('Successfully inserted', newDbCalculators.length, 'calculators');
-        return newDbCalculators.map(dbCalculatorToCalculator).filter(calc => calc !== null);
+        console.log('📊 After insertion, found', newDbCalculators.length, 'calculators');
+        
+        const convertedCalculators = newDbCalculators.map(dbCalc => {
+          try {
+            return dbCalculatorToCalculator(dbCalc);
+          } catch (conversionError) {
+            console.error('❌ Failed to convert calculator:', dbCalc.id, conversionError);
+            return null;
+          }
+        }).filter(calc => calc !== null);
+        
+        console.log('✅ Returning', convertedCalculators.length, 'converted calculators');
+        return convertedCalculators;
       }
       
-      console.log('Found', dbCalculators.length, 'calculators in database');
+      console.log('✅ Found', dbCalculators.length, 'calculators in database');
       const convertedCalculators = dbCalculators.map(dbCalc => {
         try {
-          return dbCalculatorToCalculator(dbCalc);
+          const converted = dbCalculatorToCalculator(dbCalc);
+          console.log('✅ Converted calculator:', dbCalc.id, dbCalc.name);
+          return converted;
         } catch (conversionError) {
-          console.error('Failed to convert calculator:', dbCalc.id, conversionError);
+          console.error('❌ Failed to convert calculator:', dbCalc.id, conversionError);
           return null;
         }
       }).filter(calc => calc !== null);
       
+      console.log('✅ Returning', convertedCalculators.length, 'converted calculators');
       return convertedCalculators;
     } catch (error) {
-      console.error('Error fetching calculators:', error);
+      console.error('❌ Error fetching calculators:', error);
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Failed to fetch calculators'

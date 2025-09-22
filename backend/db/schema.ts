@@ -465,15 +465,18 @@ export function dbAccessRequestToAccessRequest(dbRequest: DbAccessRequest): Acce
 }
 
 export function dbCalculatorToCalculator(dbCalc: DbCalculator): Omit<Calculator, 'calculate'> {
+  console.log('🔄 Converting DB calculator:', dbCalc.id, dbCalc.name);
+  
   let categories: string[] = [];
   let inputs: any[] = [];
   
   try {
     if (dbCalc.categories) {
       categories = typeof dbCalc.categories === 'string' ? JSON.parse(dbCalc.categories) : dbCalc.categories;
+      console.log('✅ Parsed categories:', categories);
     }
   } catch (error) {
-    console.error('Failed to parse categories for calculator', dbCalc.id, ':', error);
+    console.error('❌ Failed to parse categories for calculator', dbCalc.id, ':', error);
     console.error('Categories data:', dbCalc.categories);
     categories = [];
   }
@@ -481,14 +484,15 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Omit<Calculator,
   try {
     if (dbCalc.inputs) {
       inputs = typeof dbCalc.inputs === 'string' ? JSON.parse(dbCalc.inputs) : dbCalc.inputs;
+      console.log('✅ Parsed inputs:', inputs.length, 'inputs');
     }
   } catch (error) {
-    console.error('Failed to parse inputs for calculator', dbCalc.id, ':', error);
+    console.error('❌ Failed to parse inputs for calculator', dbCalc.id, ':', error);
     console.error('Inputs data:', dbCalc.inputs);
     inputs = [];
   }
   
-  return {
+  const result = {
     id: dbCalc.id,
     name: dbCalc.name,
     shortName: dbCalc.short_name,
@@ -496,6 +500,9 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Omit<Calculator,
     categories,
     inputs
   };
+  
+  console.log('✅ Converted calculator result:', result);
+  return result;
 }
 
 export function calculatorToDbCalculator(calc: Omit<Calculator, 'calculate'>, formula: any): DbCalculator {
