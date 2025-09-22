@@ -14,6 +14,7 @@ export const getCalculatorsProcedure = publicProcedure
       const dbCalculators = db.prepare('SELECT * FROM calculators WHERE enabled = 1 ORDER BY usage_count DESC').all() as DbCalculator[];
       
       if (dbCalculators.length === 0) {
+        console.log('No calculators found in database, initializing with defaults...');
         // Initialize with default calculators if empty
         const insertStmt = db.prepare(`
           INSERT INTO calculators (
@@ -24,30 +25,46 @@ export const getCalculatorsProcedure = publicProcedure
         
         const now = new Date().toISOString();
         for (const calc of defaultCalculators) {
-          const dbCalc = calculatorToDbCalculator(calc, { type: 'function', value: 'calculate' });
-          insertStmt.run(
-            dbCalc.id,
-            dbCalc.name,
-            dbCalc.short_name,
-            dbCalc.description,
-            dbCalc.categories,
-            dbCalc.inputs,
-            dbCalc.formula,
-            dbCalc.result_unit_metric,
-            dbCalc.result_unit_imperial,
-            dbCalc.enabled ? 1 : 0,
-            dbCalc.usage_count,
-            now,
-            now
-          );
+          try {
+            const dbCalc = calculatorToDbCalculator(calc, { type: 'function', value: 'calculate' });
+            console.log('Inserting calculator:', calc.id, calc.name);
+            insertStmt.run(
+              dbCalc.id,
+              dbCalc.name,
+              dbCalc.short_name,
+              dbCalc.description,
+              dbCalc.categories,
+              dbCalc.inputs,
+              dbCalc.formula,
+              dbCalc.result_unit_metric,
+              dbCalc.result_unit_imperial,
+              dbCalc.enabled ? 1 : 0,
+              dbCalc.usage_count,
+              now,
+              now
+            );
+          } catch (insertError) {
+            console.error('Failed to insert calculator:', calc.id, insertError);
+          }
         }
         
         // Fetch the newly inserted calculators
         const newDbCalculators = db.prepare('SELECT * FROM calculators WHERE enabled = 1 ORDER BY usage_count DESC').all() as DbCalculator[];
-        return newDbCalculators.map(dbCalculatorToCalculator);
+        console.log('Successfully inserted', newDbCalculators.length, 'calculators');
+        return newDbCalculators.map(dbCalculatorToCalculator).filter(calc => calc !== null);
       }
       
-      return dbCalculators.map(dbCalculatorToCalculator);
+      console.log('Found', dbCalculators.length, 'calculators in database');
+      const convertedCalculators = dbCalculators.map(dbCalc => {
+        try {
+          return dbCalculatorToCalculator(dbCalc);
+        } catch (conversionError) {
+          console.error('Failed to convert calculator:', dbCalc.id, conversionError);
+          return null;
+        }
+      }).filter(calc => calc !== null);
+      
+      return convertedCalculators;
     } catch (error) {
       console.error('Error fetching calculators:', error);
       throw new TRPCError({
@@ -349,6 +366,69 @@ export const getAllCalculatorsProcedure = protectedProcedure
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Failed to fetch calculators'
+      });
+    }
+  });
+
+// Admin: Reset calculators to defaults
+export const resetCalculatorsProcedure = protectedProcedure
+  .mutation(({ ctx }) => {
+    if (ctx.user?.role !== 'admin') {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Admin access required'
+      });
+    }
+    
+    const db = getDatabase();
+    
+    try {
+      // Clear existing calculators
+      db.prepare('DELETE FROM calculators').run();
+      console.log('Cleared existing calculators');
+      
+      // Insert default calculators
+      const insertStmt = db.prepare(`
+        INSERT INTO calculators (
+          id, name, short_name, description, categories, inputs, formula,
+          result_unit_metric, result_unit_imperial, enabled, usage_count, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      
+      const now = new Date().toISOString();
+      let insertedCount = 0;
+      
+      for (const calc of defaultCalculators) {
+        try {
+          const dbCalc = calculatorToDbCalculator(calc, { type: 'function', value: 'calculate' });
+          insertStmt.run(
+            dbCalc.id,
+            dbCalc.name,
+            dbCalc.short_name,
+            dbCalc.description,
+            dbCalc.categories,
+            dbCalc.inputs,
+            dbCalc.formula,
+            dbCalc.result_unit_metric,
+            dbCalc.result_unit_imperial,
+            dbCalc.enabled ? 1 : 0,
+            dbCalc.usage_count,
+            now,
+            now
+          );
+          insertedCount++;
+        } catch (insertError) {
+          console.error('Failed to insert calculator during reset:', calc.id, insertError);
+        }
+      }
+      
+      console.log('Reset complete. Inserted', insertedCount, 'calculators');
+      return { success: true, count: insertedCount };
+    } catch (error) {
+      console.error('Error resetting calculators:', error);
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to reset calculators'
       });
     }
   });

@@ -469,7 +469,9 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Omit<Calculator,
   let inputs: any[] = [];
   
   try {
-    categories = typeof dbCalc.categories === 'string' ? JSON.parse(dbCalc.categories) : dbCalc.categories;
+    if (dbCalc.categories) {
+      categories = typeof dbCalc.categories === 'string' ? JSON.parse(dbCalc.categories) : dbCalc.categories;
+    }
   } catch (error) {
     console.error('Failed to parse categories for calculator', dbCalc.id, ':', error);
     console.error('Categories data:', dbCalc.categories);
@@ -477,7 +479,9 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Omit<Calculator,
   }
   
   try {
-    inputs = typeof dbCalc.inputs === 'string' ? JSON.parse(dbCalc.inputs) : dbCalc.inputs;
+    if (dbCalc.inputs) {
+      inputs = typeof dbCalc.inputs === 'string' ? JSON.parse(dbCalc.inputs) : dbCalc.inputs;
+    }
   } catch (error) {
     console.error('Failed to parse inputs for calculator', dbCalc.id, ':', error);
     console.error('Inputs data:', dbCalc.inputs);
@@ -499,10 +503,10 @@ export function calculatorToDbCalculator(calc: Omit<Calculator, 'calculate'>, fo
     id: calc.id,
     name: calc.name,
     short_name: calc.shortName,
-    description: calc.description,
-    categories: JSON.stringify(calc.categories),
-    inputs: JSON.stringify(calc.inputs),
-    formula: JSON.stringify(formula),
+    description: calc.description || '',
+    categories: JSON.stringify(calc.categories || []),
+    inputs: JSON.stringify(calc.inputs || []),
+    formula: JSON.stringify(formula || { type: 'function', value: 'calculate' }),
     result_unit_metric: '',
     result_unit_imperial: '',
     enabled: true,
