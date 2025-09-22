@@ -44,20 +44,36 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   // Fetch calculators from backend
   const calculatorsQuery = trpc.calculators.getAll.useQuery();
   
+  console.log('Calculators query status:', {
+    isLoading: calculatorsQuery.isLoading,
+    isError: calculatorsQuery.isError,
+    error: calculatorsQuery.error,
+    dataLength: calculatorsQuery.data?.length
+  });
+  
   // Track usage mutation
   const trackUsageMutation = trpc.calculators.trackUsage.useMutation();
 
   // Convert backend calculators to app format with current unit system
   const calculators = useMemo(() => {
-    if (!calculatorsQuery.data) return [];
+    console.log('Processing calculators data:', calculatorsQuery.data);
     
-    return calculatorsQuery.data.map(calc => {
+    if (!calculatorsQuery.data) {
+      console.log('No calculators data available, returning empty array');
+      return [];
+    }
+    
+    const processedCalculators = calculatorsQuery.data.map(calc => {
+      console.log('Processing calculator:', calc.id, calc.name);
+      
       // Find the original calculator with the calculate function
       const originalCalc = defaultCalculators.find(c => c.id === calc.id);
       if (originalCalc) {
+        console.log('Found original calculator for:', calc.id);
         return originalCalc;
       }
       
+      console.log('Creating custom calculator for:', calc.id);
       // For custom calculators, create a basic calculate function
       return {
         ...calc,
@@ -72,6 +88,9 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
         }
       } as Calculator;
     });
+    
+    console.log('Processed calculators count:', processedCalculators.length);
+    return processedCalculators;
   }, [calculatorsQuery.data, currentUnitSystem]);
 
   // Get unique categories
