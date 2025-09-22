@@ -539,20 +539,22 @@ export default function MainScreen() {
           <View style={styles.menuFooter}>
             {isGuest ? (
               <TouchableOpacity 
-                style={[styles.menuItem, { borderBottomColor: theme.border }]}
+                style={[styles.createAccountButton, { backgroundColor: '#22C55E' }]}
                 onPress={handleUpgradeGuest}
               >
-                <UserPlus size={24} color={theme.primary} />
-                <Text style={[styles.menuItemText, { color: theme.primary, fontSize: theme.fontSizes.medium }]}>Create Account</Text>
+                <UserPlus size={20} color="white" />
+                <Text style={[styles.actionButtonText, { color: 'white' }]}>Create Account</Text>
               </TouchableOpacity>
             ) : null}
             
             <TouchableOpacity 
-              style={[styles.menuItem, { borderBottomWidth: 0 }]}
+              style={[styles.logoutButton, { backgroundColor: '#EF4444' }]}
               onPress={handleLogout}
             >
-              <LogOut size={24} color={theme.error} />
-              <Text style={[styles.menuItemText, { color: theme.error, fontSize: theme.fontSizes.medium }]}>Logout</Text>
+              <LogOut size={20} color="white" />
+              <Text style={[styles.actionButtonText, { color: 'white' }]}>
+                {isGuest ? 'Exit Guest Mode' : 'Logout'}
+              </Text>
             </TouchableOpacity>
           </View>
           
@@ -857,6 +859,47 @@ const styles = StyleSheet.create({
   },
   menuFooter: {
     marginTop: 'auto',
+    paddingHorizontal: 20,
     paddingTop: 16,
+    paddingBottom: 8,
+    gap: 12,
+  },
+  createAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  actionButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
   },
 });
