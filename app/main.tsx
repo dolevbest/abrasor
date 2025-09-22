@@ -436,7 +436,6 @@ export default function MainScreen() {
           {/* Menu Header */}
           <View style={[styles.menuHeader, { borderBottomColor: theme.border }]}>
             <AbrasorLogo size={32} />
-            <Text style={[styles.menuTitle, { color: theme.text, fontSize: theme.fontSizes.title }]}>Abrasor</Text>
           </View>
 
           {/* User Info Section */}
