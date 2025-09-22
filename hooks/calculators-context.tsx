@@ -132,6 +132,7 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     const sanitized = unitSystem.trim();
     if (!sanitized || sanitized.length > 20) return;
     if (sanitized === 'metric' || sanitized === 'imperial') {
+      console.log('🔄 Updating calculators unit system to:', sanitized);
       setCurrentUnitSystem(sanitized);
     }
   }, []);

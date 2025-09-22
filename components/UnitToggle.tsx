@@ -9,6 +9,7 @@ export default function UnitToggle() {
   const animatedValue = React.useRef(new Animated.Value(unitSystem === 'imperial' ? 1 : 0)).current;
 
   React.useEffect(() => {
+    console.log('🔄 UnitToggle: unitSystem changed to:', unitSystem);
     Animated.timing(animatedValue, {
       toValue: unitSystem === 'imperial' ? 1 : 0,
       duration: 200,
@@ -16,13 +17,18 @@ export default function UnitToggle() {
     }).start();
   }, [unitSystem]);
 
+  const handleToggle = React.useCallback(() => {
+    console.log('🔄 UnitToggle: Toggle pressed, current system:', unitSystem);
+    toggleUnitSystem();
+  }, [unitSystem, toggleUnitSystem]);
+
   const translateX = animatedValue.interpolate({
     inputRange: [0, 1],
     outputRange: [2, 42],
   });
 
   return (
-    <TouchableOpacity onPress={toggleUnitSystem} activeOpacity={0.8}>
+    <TouchableOpacity onPress={handleToggle} activeOpacity={0.8}>
       <View style={[styles.container, { backgroundColor: theme.inputBackground, borderColor: theme.inputBorder }]}>
         <Animated.View 
           style={[

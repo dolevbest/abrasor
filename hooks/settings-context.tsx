@@ -19,6 +19,7 @@ export const [SettingsProvider, useSettings] = createContextHook<SettingsState>(
   const { user, updateProfile } = useAuth();
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isTogglingUnit, setIsTogglingUnit] = useState(false);
 
   // tRPC queries and mutations
   const notificationsQuery = trpc.settings.notifications.getAll.useQuery({
@@ -70,10 +71,11 @@ export const [SettingsProvider, useSettings] = createContextHook<SettingsState>(
   }, [notificationsQuery.data]);
   
   useEffect(() => {
-    if (userSettingsQuery.data) {
+    if (userSettingsQuery.data && !isTogglingUnit) {
+      console.log('🔄 Settings: Loading unit system from server:', userSettingsQuery.data.unitPreference);
       setUnitSystem(userSettingsQuery.data.unitPreference);
     }
-  }, [userSettingsQuery.data]);
+  }, [userSettingsQuery.data, isTogglingUnit]);
 
   const loadSettings = useCallback(async () => {
     try {
@@ -127,18 +129,33 @@ export const [SettingsProvider, useSettings] = createContextHook<SettingsState>(
 
   const toggleUnitSystem = useCallback(async () => {
     const newSystem = unitSystem === 'metric' ? 'imperial' : 'metric';
+    console.log('🔄 Toggling unit system from', unitSystem, 'to', newSystem);
+    setIsTogglingUnit(true);
     setUnitSystem(newSystem);
-    await AsyncStorage.setItem('unitSystem', newSystem);
     
-    if (user) {
-      try {
-        await updateSettingsMutation.mutateAsync({ unitPreference: newSystem });
-        await updateProfile({ unitPreference: newSystem });
-      } catch (error) {
-        console.error('Failed to update unit system:', error);
-        // Revert on error
-        setUnitSystem(unitSystem);
+    try {
+      await AsyncStorage.setItem('unitSystem', newSystem);
+      console.log('✅ Unit system saved to AsyncStorage:', newSystem);
+      
+      if (user) {
+        try {
+          await updateSettingsMutation.mutateAsync({ unitPreference: newSystem });
+          await updateProfile({ unitPreference: newSystem });
+          console.log('✅ Unit system updated in backend:', newSystem);
+        } catch (error) {
+          console.error('❌ Failed to update unit system in backend:', error);
+          // Don't revert on backend error, keep local change
+        }
       }
+    } catch (error) {
+      console.error('❌ Failed to save unit system to AsyncStorage:', error);
+      // Revert on AsyncStorage error
+      setUnitSystem(unitSystem);
+    } finally {
+      // Reset the toggling flag after a delay to allow server sync
+      setTimeout(() => {
+        setIsTogglingUnit(false);
+      }, 1000);
     }
   }, [unitSystem, user, updateSettingsMutation, updateProfile]);
 
