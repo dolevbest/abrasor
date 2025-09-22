@@ -44,6 +44,9 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   // Fetch calculators from backend
   const calculatorsQuery = trpc.calculators.getAll.useQuery();
   
+  // Clear corrupted calculators mutation
+  const clearCorruptedMutation = trpc.calculators.clearCorrupted.useMutation();
+  
   console.log('🔍 Calculators query status:', {
     isLoading: calculatorsQuery.isLoading,
     isError: calculatorsQuery.isError,
@@ -64,40 +67,52 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
       return [];
     }
     
-    const processedCalculators = calculatorsQuery.data.map(calc => {
-      console.log('Processing calculator:', calc.id, calc.name);
-      
-      // Find the original calculator with the calculate function
-      const originalCalc = defaultCalculators.find(c => c.id === calc.id);
-      if (originalCalc) {
-        console.log('Found original calculator for:', calc.id);
-        return originalCalc;
-      }
-      
-      console.log('Creating custom calculator for:', calc.id);
-      // For custom calculators, create a basic calculate function
-      return {
-        ...calc,
-        calculate: (inputs: Record<string, number>, unitSystem: UnitSystem) => {
-          // Basic calculation - in a real implementation, you'd evaluate the stored formula
-          return {
-            label: calc.shortName,
-            value: 0,
-            unit: { metric: '', imperial: '' },
-            scale: { min: 0, max: 100, optimal: { min: 20, max: 80 } }
-          };
+    try {
+      const processedCalculators = calculatorsQuery.data.map(calc => {
+        console.log('Processing calculator:', calc.id, calc.name);
+        
+        // Find the original calculator with the calculate function
+        const originalCalc = defaultCalculators.find(c => c.id === calc.id);
+        if (originalCalc) {
+          console.log('Found original calculator for:', calc.id);
+          return originalCalc;
         }
-      } as Calculator;
-    });
-    
-    console.log('Processed calculators count:', processedCalculators.length);
-    return processedCalculators;
-  }, [calculatorsQuery.data, currentUnitSystem]);
+        
+        console.log('Creating custom calculator for:', calc.id);
+        // For custom calculators, create a basic calculate function
+        return {
+          ...calc,
+          calculate: (inputs: Record<string, number>, unitSystem: UnitSystem) => {
+            // Basic calculation - in a real implementation, you'd evaluate the stored formula
+            return {
+              label: calc.shortName,
+              value: 0,
+              unit: { metric: '', imperial: '' },
+              scale: { min: 0, max: 100, optimal: { min: 20, max: 80 } }
+            };
+          }
+        } as Calculator;
+      });
+      
+      console.log('Processed calculators count:', processedCalculators.length);
+      return processedCalculators;
+    } catch (error) {
+      console.error('Error processing calculators data:', error);
+      // Trigger cleanup of corrupted data
+      clearCorruptedMutation.mutate();
+      return [];
+    }
+  }, [calculatorsQuery.data, currentUnitSystem, clearCorruptedMutation]);
 
   // Get unique categories
   const categories = useMemo(() => {
-    const allCategories = calculators.flatMap(c => c.categories);
-    return Array.from(new Set(allCategories));
+    try {
+      const allCategories = calculators.flatMap(c => c.categories || []);
+      return Array.from(new Set(allCategories));
+    } catch (error) {
+      console.error('Error processing categories:', error);
+      return [];
+    }
   }, [calculators]);
 
   // Track calculator usage
@@ -110,14 +125,34 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
   }, [trackUsageMutation]);
 
   // Reload calculators (useful when admin makes changes)
-  const reloadCalculators = useCallback(() => {
-    calculatorsQuery.refetch();
-  }, [calculatorsQuery]);
+  const reloadCalculators = useCallback(async () => {
+    try {
+      await calculatorsQuery.refetch();
+    } catch (error) {
+      console.error('Failed to reload calculators, attempting to clear corrupted data:', error);
+      try {
+        await clearCorruptedMutation.mutateAsync();
+        await calculatorsQuery.refetch();
+      } catch (clearError) {
+        console.error('Failed to clear corrupted calculators:', clearError);
+      }
+    }
+  }, [calculatorsQuery, clearCorruptedMutation]);
   
   // Force refresh calculators from backend
   const refreshCalculators = useCallback(async () => {
-    await calculatorsQuery.refetch();
-  }, [calculatorsQuery]);
+    try {
+      await calculatorsQuery.refetch();
+    } catch (error) {
+      console.error('Failed to refresh calculators, attempting to clear corrupted data:', error);
+      try {
+        await clearCorruptedMutation.mutateAsync();
+        await calculatorsQuery.refetch();
+      } catch (clearError) {
+        console.error('Failed to clear corrupted calculators:', clearError);
+      }
+    }
+  }, [calculatorsQuery, clearCorruptedMutation]);
 
   const getCalculatorById = useCallback((id: string) => 
     calculators.find(c => c.id === id), [calculators]);
@@ -129,6 +164,19 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     setCurrentUnitSystem(unitSystem);
   }, []);
 
+  // Clear corrupted calculators manually
+  const clearCorruptedCalculators = useCallback(async () => {
+    try {
+      const result = await clearCorruptedMutation.mutateAsync();
+      console.log('Cleared corrupted calculators:', result);
+      await calculatorsQuery.refetch();
+      return result;
+    } catch (error) {
+      console.error('Failed to clear corrupted calculators:', error);
+      throw error;
+    }
+  }, [clearCorruptedMutation, calculatorsQuery]);
+
   return useMemo(() => ({
     calculators,
     categories,
@@ -136,9 +184,10 @@ export const [CalculatorsProvider, useCalculators] = createContextHook(() => {
     trackUsage,
     reloadCalculators,
     refreshCalculators,
+    clearCorruptedCalculators,
     getCalculatorById,
     getCalculatorsByCategory,
     updateUnitSystem,
     currentUnitSystem,
-  }), [calculators, categories, calculatorsQuery.isLoading, trackUsage, reloadCalculators, refreshCalculators, getCalculatorById, getCalculatorsByCategory, updateUnitSystem, currentUnitSystem]);
+  }), [calculators, categories, calculatorsQuery.isLoading, trackUsage, reloadCalculators, refreshCalculators, clearCorruptedCalculators, getCalculatorById, getCalculatorsByCategory, updateUnitSystem, currentUnitSystem]);
 });

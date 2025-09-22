@@ -472,7 +472,19 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Omit<Calculator,
   
   try {
     if (dbCalc.categories) {
-      categories = typeof dbCalc.categories === 'string' ? JSON.parse(dbCalc.categories) : dbCalc.categories;
+      // Check if it's already an array or needs parsing
+      if (Array.isArray(dbCalc.categories)) {
+        categories = dbCalc.categories;
+      } else if (typeof dbCalc.categories === 'string') {
+        // Validate JSON before parsing
+        const trimmed = dbCalc.categories.trim();
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+          categories = JSON.parse(trimmed);
+        } else {
+          console.warn('⚠️ Invalid categories JSON format for calculator', dbCalc.id, ':', dbCalc.categories);
+          categories = [];
+        }
+      }
       console.log('✅ Parsed categories:', categories);
     }
   } catch (error) {
@@ -483,7 +495,19 @@ export function dbCalculatorToCalculator(dbCalc: DbCalculator): Omit<Calculator,
   
   try {
     if (dbCalc.inputs) {
-      inputs = typeof dbCalc.inputs === 'string' ? JSON.parse(dbCalc.inputs) : dbCalc.inputs;
+      // Check if it's already an array or needs parsing
+      if (Array.isArray(dbCalc.inputs)) {
+        inputs = dbCalc.inputs;
+      } else if (typeof dbCalc.inputs === 'string') {
+        // Validate JSON before parsing
+        const trimmed = dbCalc.inputs.trim();
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+          inputs = JSON.parse(trimmed);
+        } else {
+          console.warn('⚠️ Invalid inputs JSON format for calculator', dbCalc.id, ':', dbCalc.inputs);
+          inputs = [];
+        }
+      }
       console.log('✅ Parsed inputs:', inputs.length, 'inputs');
     }
   } catch (error) {

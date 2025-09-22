@@ -18,13 +18,14 @@ import { ThemeSelector } from '@/components/ThemeSelector';
 import { useSettings } from '@/hooks/settings-context';
 export default function CalculatorsScreen() {
   const { theme } = useTheme();
-  const { calculators, categories, isLoading, reloadCalculators, updateUnitSystem } = useCalculators();
+  const { calculators, categories, isLoading, reloadCalculators, updateUnitSystem, clearCorruptedCalculators } = useCalculators();
   const { unitSystem } = useSettings();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showThemeSelector, setShowThemeSelector] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasUpdates, setHasUpdates] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   // Load calculators only once on mount
   useEffect(() => {
@@ -66,6 +67,22 @@ export default function CalculatorsScreen() {
       console.error('Failed to refresh calculators:', error);
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleClearCorrupted = async () => {
+    if (isClearing) return;
+    
+    setIsClearing(true);
+    try {
+      if (clearCorruptedCalculators) {
+        const result = await clearCorruptedCalculators();
+        console.log('Cleared corrupted calculators:', result);
+      }
+    } catch (error) {
+      console.error('Failed to clear corrupted calculators:', error);
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -113,7 +130,7 @@ export default function CalculatorsScreen() {
             {searchQuery.length > 0 && (
               <TouchableOpacity
                 onPress={() => setSearchQuery('')}
-                style={styles.clearButton}
+                style={styles.clearSearchButton}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <X size={18} color={theme.textSecondary} />
@@ -218,6 +235,19 @@ export default function CalculatorsScreen() {
                 ? 'No calculators have been added yet. Admin can add calculators from the admin panel.'
                 : 'Try adjusting your search or filters'}
             </Text>
+            {calculators.length === 0 && (
+              <TouchableOpacity
+                style={[styles.clearCorruptedButton, { backgroundColor: theme.error, marginTop: 16 }]}
+                onPress={handleClearCorrupted}
+                disabled={isClearing}
+              >
+                {isClearing ? (
+                  <ActivityIndicator size="small" color={theme.primaryText} />
+                ) : (
+                  <Text style={[styles.clearButtonText, { color: theme.primaryText }]}>Clear Corrupted Data</Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
@@ -310,7 +340,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
   },
-  clearButton: {
+  clearSearchButton: {
     padding: 4,
     justifyContent: 'center',
     alignItems: 'center',
@@ -362,5 +392,16 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
+  },
+  clearCorruptedButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearButtonText: {
+    fontWeight: '600' as const,
+    fontSize: 14,
   },
 });

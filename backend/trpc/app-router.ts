@@ -18,7 +18,8 @@ import {
   updateCalculatorProcedure,
   deleteCalculatorProcedure,
   getAllCalculatorsProcedure,
-  resetCalculatorsProcedure
+  resetCalculatorsProcedure,
+  clearCorruptedCalculatorsProcedure
 } from "@/backend/trpc/routes/calculators/management/route";
 import {
   getSavedCalculationsProcedure,
@@ -73,6 +74,7 @@ export const appRouter = createTRPCRouter({
     delete: deleteCalculatorProcedure,
     getAllAdmin: getAllCalculatorsProcedure,
     reset: resetCalculatorsProcedure,
+    clearCorrupted: clearCorruptedCalculatorsProcedure,
   }),
   calculations: createTRPCRouter({
     getSaved: getSavedCalculationsProcedure,

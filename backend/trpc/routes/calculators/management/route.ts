@@ -456,3 +456,106 @@ export const resetCalculatorsProcedure = protectedProcedure
       });
     }
   });
+
+// Public: Clear corrupted calculators and reinitialize
+export const clearCorruptedCalculatorsProcedure = publicProcedure
+  .mutation(() => {
+    console.log('🧹 Clearing corrupted calculators...');
+    const db = getDatabase();
+    
+    try {
+      // First, try to identify corrupted entries
+      const allCalculators = db.prepare('SELECT * FROM calculators').all() as DbCalculator[];
+      const corruptedIds: string[] = [];
+      
+      for (const calc of allCalculators) {
+        try {
+          // Test if we can parse the JSON fields
+          if (calc.categories && typeof calc.categories === 'string') {
+            const trimmed = calc.categories.trim();
+            if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) {
+              corruptedIds.push(calc.id);
+              continue;
+            }
+            JSON.parse(trimmed);
+          }
+          
+          if (calc.inputs && typeof calc.inputs === 'string') {
+            const trimmed = calc.inputs.trim();
+            if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) {
+              corruptedIds.push(calc.id);
+              continue;
+            }
+            JSON.parse(trimmed);
+          }
+        } catch (error) {
+          console.log('Found corrupted calculator:', calc.id, error);
+          corruptedIds.push(calc.id);
+        }
+      }
+      
+      console.log('Found', corruptedIds.length, 'corrupted calculators');
+      
+      // Delete corrupted calculators
+      if (corruptedIds.length > 0) {
+        const deleteStmt = db.prepare('DELETE FROM calculators WHERE id = ?');
+        for (const id of corruptedIds) {
+          deleteStmt.run(id);
+        }
+        console.log('Deleted', corruptedIds.length, 'corrupted calculators');
+      }
+      
+      // Check if we have any valid calculators left
+      const remainingCount = db.prepare('SELECT COUNT(*) as count FROM calculators WHERE enabled = 1').get() as { count: number };
+      
+      if (remainingCount.count === 0) {
+        console.log('No valid calculators remaining, reinitializing with defaults...');
+        
+        // Insert default calculators
+        const insertStmt = db.prepare(`
+          INSERT INTO calculators (
+            id, name, short_name, description, categories, inputs, formula,
+            result_unit_metric, result_unit_imperial, enabled, usage_count, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        
+        const now = new Date().toISOString();
+        let insertedCount = 0;
+        
+        for (const calc of defaultCalculators) {
+          try {
+            const dbCalc = calculatorToDbCalculator(calc, { type: 'function', value: 'calculate' });
+            insertStmt.run(
+              dbCalc.id,
+              dbCalc.name,
+              dbCalc.short_name,
+              dbCalc.description,
+              dbCalc.categories,
+              dbCalc.inputs,
+              dbCalc.formula,
+              dbCalc.result_unit_metric,
+              dbCalc.result_unit_imperial,
+              dbCalc.enabled ? 1 : 0,
+              dbCalc.usage_count,
+              now,
+              now
+            );
+            insertedCount++;
+          } catch (insertError) {
+            console.error('Failed to insert calculator during cleanup:', calc.id, insertError);
+          }
+        }
+        
+        console.log('Cleanup complete. Inserted', insertedCount, 'calculators');
+        return { success: true, cleared: corruptedIds.length, inserted: insertedCount };
+      }
+      
+      return { success: true, cleared: corruptedIds.length, inserted: 0 };
+    } catch (error) {
+      console.error('Error clearing corrupted calculators:', error);
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to clear corrupted calculators'
+      });
+    }
+  });
