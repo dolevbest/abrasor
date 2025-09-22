@@ -43,11 +43,18 @@ export default function LoginScreen() {
       return;
     }
 
+    console.log('🔐 Starting login process...');
+    console.log('🔐 Email:', email);
+    console.log('🔐 Remember me:', rememberMe);
+    
     setIsLoading(true);
     try {
+      console.log('🔐 Calling login function...');
       await login(email, password, rememberMe);
+      console.log('✅ Login successful, navigating to calculators...');
       router.replace('/(tabs)/calculators');
     } catch (error: any) {
+      console.error('❌ Login failed in handleLogin:', error);
       const errorMessage = error.message || 'Invalid credentials';
       
       if (errorMessage.includes('Account is locked')) {
@@ -284,6 +291,21 @@ export default function LoginScreen() {
             <Text style={[styles.guestInfoText, { color: theme.textSecondary }]}>
               Guest mode: Use calculators without an account. Data saved locally on your device.
             </Text>
+            
+            {__DEV__ && (
+              <TouchableOpacity
+                style={[styles.debugButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                onPress={() => {
+                  setEmail('dolevb@cgwheels.com');
+                  setPassword('Do123456$');
+                  setRememberMe(true);
+                }}
+              >
+                <Text style={[styles.debugButtonText, { color: theme.textSecondary }]}>
+                  Debug: Fill Admin Credentials
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -486,5 +508,20 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     padding: 12,
+  },
+  debugButton: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    marginTop: 12,
+  },
+  debugButtonText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '500' as const,
   },
 });

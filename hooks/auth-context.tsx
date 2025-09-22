@@ -45,7 +45,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
 
   const clearCorruptedData = async () => {
     try {
-      console.log('Clearing potentially corrupted AsyncStorage data...');
+      console.log('🧹 Clearing potentially corrupted AsyncStorage data...');
       await AsyncStorage.multiRemove([
         'user',
         'rememberMe', 
@@ -56,78 +56,119 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
         'sentEmails',
         'systemLogs'
       ]);
+      console.log('✅ Cleared corrupted AsyncStorage data');
     } catch (error) {
-      console.error('Failed to clear corrupted data:', error);
+      console.error('❌ Failed to clear corrupted data:', error);
     }
   };
 
   const loadUser = async () => {
     try {
+      console.log('🔄 Loading user from AsyncStorage...');
       const rememberMeEnabled = await AsyncStorage.getItem('rememberMe');
       const storedUser = await AsyncStorage.getItem('user');
       const guestMode = await AsyncStorage.getItem('guestMode');
       
+      console.log('📱 AsyncStorage values:', {
+        rememberMe: rememberMeEnabled,
+        hasUser: !!storedUser,
+        guestMode: guestMode
+      });
+      
       if (rememberMeEnabled === 'true' && storedUser) {
         // Auto-login if remember me was enabled
         try {
+          console.log('🔐 Attempting to parse stored user data...');
           const parsedUser = JSON.parse(storedUser);
-          if (parsedUser && typeof parsedUser === 'object') {
+          if (parsedUser && typeof parsedUser === 'object' && parsedUser.id) {
+            console.log('✅ Successfully loaded user:', parsedUser.email);
             setUser(parsedUser);
           } else {
-            throw new Error('Invalid user data format');
+            throw new Error('Invalid user data format - missing required fields');
           }
         } catch (error) {
-          console.error('Failed to parse stored user data:', error);
+          console.error('❌ Failed to parse stored user data:', error);
           await AsyncStorage.removeItem('user');
           await AsyncStorage.removeItem('rememberMe');
         }
       } else if (storedUser && rememberMeEnabled !== 'false') {
         // For backward compatibility, keep user logged in if rememberMe is not explicitly false
         try {
+          console.log('🔐 Attempting backward compatibility user load...');
           const parsedUser = JSON.parse(storedUser);
-          if (parsedUser && typeof parsedUser === 'object') {
+          if (parsedUser && typeof parsedUser === 'object' && parsedUser.id) {
+            console.log('✅ Successfully loaded user (backward compatibility):', parsedUser.email);
             setUser(parsedUser);
           } else {
-            throw new Error('Invalid user data format');
+            throw new Error('Invalid user data format - missing required fields');
           }
         } catch (error) {
-          console.error('Failed to parse stored user data:', error);
+          console.error('❌ Failed to parse stored user data (backward compatibility):', error);
           await AsyncStorage.removeItem('user');
           await AsyncStorage.removeItem('rememberMe');
         }
       } else if (guestMode === 'true') {
+        console.log('👤 Loading guest mode');
         setIsGuest(true);
       } else {
-        // Clear user data if remember me is disabled
+        console.log('🧹 Clearing user data (remember me disabled)');
         await AsyncStorage.removeItem('user');
       }
     } catch (error) {
-      console.error('Failed to load user:', error);
+      console.error('❌ Failed to load user:', error);
       // If there's a critical error loading user data, clear all potentially corrupted data
       if (error instanceof SyntaxError || (error as any)?.message?.includes('JSON')) {
-        console.log('JSON parse error detected, clearing corrupted data...');
+        console.log('🧹 JSON parse error detected, clearing corrupted data...');
         await clearCorruptedData();
       }
     } finally {
+      console.log('✅ User loading complete');
       setIsLoading(false);
     }
   };
 
   const login = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
-      const result = await trpcClient.auth.login.mutate({ email, password, rememberMe });
+      console.log('🔐 Attempting login for:', email);
+      console.log('🔐 Remember me:', rememberMe);
       
-      if (result) {
-        // Store user data locally
-        await AsyncStorage.setItem('user', JSON.stringify(result.user));
-        await AsyncStorage.setItem('guestMode', 'false');
-        await AsyncStorage.setItem('rememberMe', result.rememberMe ? 'true' : 'false');
+      const result = await trpcClient.auth.login.mutate({ email, password, rememberMe });
+      console.log('✅ Login successful:', result?.user?.email);
+      
+      if (result && result.user) {
+        // Validate user data before storing
+        if (!result.user.id || !result.user.email) {
+          throw new Error('Invalid user data received from server');
+        }
+        
+        console.log('💾 Storing user data locally...');
+        // Store user data locally with error handling
+        try {
+          await AsyncStorage.setItem('user', JSON.stringify(result.user));
+          await AsyncStorage.setItem('guestMode', 'false');
+          await AsyncStorage.setItem('rememberMe', result.rememberMe ? 'true' : 'false');
+          console.log('✅ User data stored successfully');
+        } catch (storageError) {
+          console.error('❌ Failed to store user data:', storageError);
+          // Continue with login even if storage fails
+        }
         
         setUser(result.user);
         setIsGuest(false);
+        console.log('✅ Login process completed');
+      } else {
+        throw new Error('No user data received from server');
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
+      
+      // Check for specific error types
+      if (error.message?.includes('JSON')) {
+        console.log('🧹 JSON error detected during login, clearing corrupted data...');
+        await clearCorruptedData();
+        throw new Error('Login failed due to corrupted data. Please try again.');
+      }
+      
       throw new Error(error.message || 'Login failed');
     }
   };

@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const clearCorruptedData = async () => {
   try {
     console.log('🧹 Clearing potentially corrupted AsyncStorage data...');
-    const keys = ['user', 'rememberMe', 'settings', 'calculations', 'notifications'];
+    const keys = ['user', 'rememberMe', 'settings', 'calculations', 'notifications', 'guestMode'];
     await AsyncStorage.multiRemove(keys);
     console.log('✅ Cleared AsyncStorage data');
   } catch (error) {
@@ -35,25 +35,46 @@ const trpcUrl = `${baseUrl}/api/trpc`;
 console.log('🔗 tRPC URL:', trpcUrl);
 
 // Test the tRPC endpoint with timeout
-const healthCheckController = new AbortController();
-setTimeout(() => healthCheckController.abort(), 3000); // 3 second timeout for health check
-
-fetch(`${baseUrl}/api/`, { signal: healthCheckController.signal })
-  .then(response => {
+// Perform health check with better error handling
+const performHealthCheck = async () => {
+  const healthCheckController = new AbortController();
+  const timeoutId = setTimeout(() => healthCheckController.abort(), 5000); // 5 second timeout
+  
+  try {
+    const response = await fetch(`${baseUrl}/api/`, { 
+      signal: healthCheckController.signal,
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    clearTimeout(timeoutId);
     console.log('🏥 API health check status:', response.status);
-    return response.json();
-  })
-  .then(data => {
-    console.log('🏥 API health check response:', data);
-  })
-  .catch(error => {
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('🏥 API health check response:', data);
+      console.log('✅ API is healthy and reachable');
+    } else {
+      console.warn('⚠️ API health check returned non-200 status:', response.status);
+    }
+  } catch (error) {
+    clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      console.error('❌ API health check timed out after 3 seconds');
+      console.error('❌ API health check timed out after 5 seconds');
     } else {
       console.error('❌ API health check failed:', error);
+      console.error('❌ This may indicate network issues or server problems');
     }
-  });
+  }
+};
 
+// Run health check
+performHealthCheck();
+
+// Create tRPC client with enhanced error handling
 export const trpcClient = trpc.createClient({
   links: [
     httpLink({
@@ -65,22 +86,31 @@ export const trpcClient = trpc.createClient({
           const storedUser = await AsyncStorage.getItem('user');
           if (storedUser && storedUser.trim()) {
             try {
+              // Validate JSON before parsing
+              if (!storedUser.startsWith('{') || !storedUser.endsWith('}')) {
+                console.warn('⚠️ Invalid user data format in AsyncStorage');
+                await clearCorruptedData();
+                return {};
+              }
+              
               const user = JSON.parse(storedUser);
               if (user && typeof user === 'object' && user.id) {
+                console.log('🔑 Using auth token for user:', user.email);
                 return {
                   authorization: `Bearer ${user.id}`,
                 };
               } else {
-                throw new Error('Invalid user data format');
+                console.warn('⚠️ Invalid user data format - missing required fields');
+                await clearCorruptedData();
               }
             } catch (parseError) {
-              console.error('Failed to parse stored user for auth:', parseError);
+              console.error('❌ Failed to parse stored user for auth:', parseError);
               // Clear all potentially corrupted data
               await clearCorruptedData();
             }
           }
         } catch (error) {
-          console.error('Error getting auth token:', error);
+          console.error('❌ Error getting auth token:', error);
         }
         return {};
       },
@@ -129,9 +159,20 @@ export const trpcClient = trpc.createClient({
             try {
               const errorData = JSON.parse(responseText);
               console.error('❌ Server error response:', errorData);
+              
+              // Extract the actual error message from tRPC error format
+              if (errorData && Array.isArray(errorData) && errorData[0] && errorData[0].error) {
+                const tRPCError = errorData[0].error;
+                if (tRPCError.message) {
+                  throw new Error(tRPCError.message);
+                }
+              }
+              
+              throw new Error(`Server error: ${response.status}`);
             } catch (parseError) {
               console.error('❌ Response is not valid JSON:', parseError);
               console.error('❌ Raw response:', responseText);
+              throw new Error(`Server error: ${response.status} - ${response.statusText}`);
             }
           } else {
             // Check if successful response is valid JSON for superjson compatibility
@@ -162,7 +203,7 @@ export const trpcClient = trpc.createClient({
           clearTimeout(timeoutId);
           if (error.name === 'AbortError') {
             console.error('❌ tRPC request timed out after 8 seconds');
-            throw new Error('Request timed out');
+            throw new Error('Request timed out. Please check your internet connection.');
           }
           console.error('❌ tRPC fetch error:', error);
           throw error;

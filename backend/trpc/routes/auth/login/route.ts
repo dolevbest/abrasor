@@ -13,6 +13,8 @@ export const loginProcedure = publicProcedure
   .input(loginSchema)
   .mutation(async ({ input }) => {
     const { email, password, rememberMe } = input;
+    console.log('🔐 Login attempt for:', email, 'Remember me:', rememberMe);
+    
     const db = getDatabase();
     
     try {
@@ -140,6 +142,8 @@ export const loginProcedure = publicProcedure
         }
         
         if (dbUser.status === 'approved') {
+          console.log('✅ User approved, updating last login...');
+          
           // Update last login
           db.prepare('UPDATE users SET last_login = ? WHERE id = ?').run(
             new Date().toISOString(),
@@ -152,8 +156,13 @@ export const loginProcedure = publicProcedure
           }
           
           const updatedUser = { ...dbUser, last_login: new Date().toISOString() };
+          const userResult = dbUserToUser(updatedUser);
+          
+          console.log('✅ Login successful for user:', userResult.email);
+          console.log('💾 Returning user data with rememberMe:', rememberMe);
+          
           return {
-            user: dbUserToUser(updatedUser),
+            user: userResult,
             rememberMe
           };
         } else if (dbUser.status === 'pending') {
@@ -182,12 +191,13 @@ export const loginProcedure = publicProcedure
       
     } catch (error) {
       if (error instanceof TRPCError) {
+        console.error('❌ tRPC Error during login:', error.message);
         throw error;
       }
-      console.error('Login error:', error);
+      console.error('❌ Unexpected login error:', error);
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
-        message: 'An error occurred during login'
+        message: 'An unexpected error occurred during login. Please try again.'
       });
     }
   });
