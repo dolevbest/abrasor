@@ -99,7 +99,7 @@ function MenuItemAnimated({ item, Icon, theme, onPress, index, visible }: MenuIt
       ]}
     >
       <TouchableOpacity
-        style={[styles.menuItem, { borderBottomColor: theme.border }]}
+        style={styles.menuItem}
         onPress={onPress}
         activeOpacity={0.7}
       >
@@ -309,10 +309,10 @@ export default function SideMenu({ visible, onClose }: SideMenuProps) {
         >
           <SafeAreaView style={styles.menuContent}>
             {/* Header */}
-            <View style={[styles.menuHeader, { borderBottomColor: theme.border }]}>
+            <View style={styles.menuHeader}>
               <View style={styles.userInfo}>
                 <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
-                  <User size={24} color={theme.primaryText} />
+                  <User size={32} color={theme.primaryText} />
                 </View>
                 <View style={styles.userDetails}>
                   <Text style={[styles.userName, { color: theme.text }]}>
@@ -430,8 +430,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
+    padding: 24,
+    paddingBottom: 28,
   },
   userInfo: {
     flexDirection: 'row',
@@ -439,23 +439,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   userDetails: {
     flex: 1,
   },
   userName: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '600' as const,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   userRole: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '500' as const,
   },
   closeButton: {
@@ -475,7 +475,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   menuItemLeft: {
     flexDirection: 'row',
