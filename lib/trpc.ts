@@ -46,7 +46,7 @@ export const trpcClient = trpc.createClient({
   links: [
     httpLink({
       url: trpcUrl,
-      // transformer: superjson, // Temporarily disabled to debug JSON parsing issues
+      transformer: superjson,
       async headers() {
         // Get user token from AsyncStorage for authentication
         try {
@@ -123,9 +123,24 @@ export const trpcClient = trpc.createClient({
               console.error('❌ Raw response:', responseText);
             }
           } else {
-            // Check if successful response is valid JSON
-            if (responseText && !responseText.trim().startsWith('{') && !responseText.trim().startsWith('[')) {
-              console.warn('⚠️ Successful response might not be valid JSON:', responseText.substring(0, 100));
+            // Check if successful response is valid JSON for superjson compatibility
+            if (responseText) {
+              try {
+                // Try to parse the response to catch JSON errors early
+                JSON.parse(responseText);
+                console.log('✅ Response is valid JSON');
+              } catch (jsonError) {
+                console.error('❌ Response is not valid JSON:', jsonError);
+                console.error('❌ Invalid JSON response:', responseText.substring(0, 500));
+                
+                // Check for specific JSON parse error patterns
+                if (responseText.includes('Unexpected character: o')) {
+                  console.error('❌ Detected "Unexpected character: o" error - likely corrupted data in database');
+                  throw new Error('JSON Parse Error: Corrupted data detected. Please clear corrupted data and try again.');
+                }
+                
+                throw new Error(`Invalid JSON response: ${jsonError}`);
+              }
             }
           }
           

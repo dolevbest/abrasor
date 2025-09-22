@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { appRouter } from "./trpc/app-router";
 import { createContext } from "./trpc/create-context";
 import { initDatabase } from "./db/schema";
+import superjson from "superjson";
 
 // Initialize database on startup
 console.log('🚀 Starting database initialization...');
@@ -31,6 +32,7 @@ app.use(
     endpoint: "/api/trpc",
     router: appRouter,
     createContext,
+    transformer: superjson,
   })
 );
 

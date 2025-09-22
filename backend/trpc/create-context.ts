@@ -40,7 +40,7 @@ export type Context = Awaited<ReturnType<typeof createContext>>;
 
 // Initialize tRPC
 const t = initTRPC.context<Context>().create({
-  // transformer: superjson, // Temporarily disabled to debug JSON parsing issues
+  transformer: superjson,
 });
 
 export const createTRPCRouter = t.router;
