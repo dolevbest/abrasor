@@ -527,7 +527,7 @@ export default function MainScreen() {
             <View style={[styles.userInfoSection, { borderBottomColor: theme.border }]}>
               <View style={styles.userProfileContainer}>
                 <View style={styles.userAvatarLarge}>
-                  {user.profileImage ? (
+                  {user.profileImage && user.profileImage.trim() ? (
                     <Image 
                       source={{ uri: user.profileImage }} 
                       style={styles.avatarImageLarge}
