@@ -62,9 +62,11 @@ export default function MainScreen() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (reloadCalculators) {
-        reloadCalculators();
+        reloadCalculators().catch(error => {
+          console.error('Failed to load calculators:', error);
+        });
       }
-    }, 500); // Increased delay to allow hydration to complete
+    }, 1000); // Increased delay to allow hydration to complete
     
     return () => clearTimeout(timer);
   }, [reloadCalculators]);

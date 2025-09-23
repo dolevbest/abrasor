@@ -102,10 +102,16 @@ export default function LoginScreen() {
           'Your access request is currently being reviewed by our administrators. Please wait for approval.\n\nYou will receive an email notification once your request is processed.',
           [{ text: 'OK' }]
         );
-      } else if (errorMessage.includes('corrupted data')) {
+      } else if (errorMessage.includes('corrupted data') || errorMessage.includes('JSON') || errorMessage.includes('parse')) {
         Alert.alert(
           'Login Failed',
-          errorMessage + '\n\nTip: Try using the "Reset App" button below to clear corrupted data.',
+          'Login failed due to corrupted data. The app data has been cleared automatically. Please try logging in again.',
+          [{ text: 'OK' }]
+        );
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('network') || errorMessage.includes('connection')) {
+        Alert.alert(
+          'Connection Error',
+          'Unable to connect to the server. Please check your internet connection and try again.',
           [{ text: 'OK' }]
         );
       } else {

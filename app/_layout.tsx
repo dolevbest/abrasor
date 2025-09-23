@@ -23,35 +23,52 @@ const clearCorruptedDataOnStartup = async () => {
     console.log('🔍 Checking for corrupted AsyncStorage data on startup...');
     const keys = ['user', 'notifications', 'guestCalculations', 'sentEmails', 'systemLogs'];
     
-    for (const key of keys) {
-      try {
-        const value = await AsyncStorage.getItem(key);
-        if (value && value.trim()) {
-          const trimmed = value.trim();
-          
-          // Check for corruption patterns
-          if (trimmed.includes('object Object') || trimmed.includes('[object') ||
-              trimmed.includes('NaN') || trimmed.includes('Infinity') ||
-              trimmed.includes('Unexpected character') ||
-              (!trimmed.startsWith('{') && !trimmed.startsWith('[')) ||
-              (!trimmed.endsWith('}') && !trimmed.endsWith(']'))) {
-            console.warn(`⚠️ Detected corrupted data in ${key}, clearing...`);
-            await AsyncStorage.removeItem(key);
-            continue;
+    // Add timeout to prevent hanging
+    const validationPromise = Promise.all(
+      keys.map(async (key) => {
+        try {
+          const value = await AsyncStorage.getItem(key);
+          if (value && value.trim()) {
+            const trimmed = value.trim();
+            
+            // Check for corruption patterns
+            if (trimmed.includes('object Object') || trimmed.includes('[object') ||
+                trimmed.includes('NaN') || trimmed.includes('Infinity') ||
+                trimmed.includes('Unexpected character') ||
+                (!trimmed.startsWith('{') && !trimmed.startsWith('[')) ||
+                (!trimmed.endsWith('}') && !trimmed.endsWith(']'))) {
+              console.warn(`⚠️ Detected corrupted data in ${key}, clearing...`);
+              await AsyncStorage.removeItem(key);
+              return;
+            }
+            
+            // Try to parse to validate JSON
+            JSON.parse(trimmed);
+            console.log(`✅ ${key} data is valid`);
           }
-          
-          // Try to parse to validate JSON
-          JSON.parse(trimmed);
-          console.log(`✅ ${key} data is valid`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to validate ${key}, clearing corrupted data:`, error);
+          await AsyncStorage.removeItem(key);
         }
-      } catch (error) {
-        console.warn(`⚠️ Failed to validate ${key}, clearing corrupted data:`, error);
-        await AsyncStorage.removeItem(key);
-      }
-    }
+      })
+    );
+    
+    // Race with timeout
+    await Promise.race([
+      validationPromise,
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Validation timeout')), 3000)
+      )
+    ]);
+    
     console.log('✅ AsyncStorage validation complete');
   } catch (error) {
-    console.error('❌ Failed to validate AsyncStorage on startup:', error);
+    if (error.message === 'Validation timeout') {
+      console.warn('⚠️ AsyncStorage validation timed out, clearing all potentially corrupted data');
+      await AsyncStorage.multiRemove(['user', 'notifications', 'guestCalculations', 'sentEmails', 'systemLogs']);
+    } else {
+      console.error('❌ Failed to validate AsyncStorage on startup:', error);
+    }
   }
 };
 
