@@ -221,9 +221,9 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       // Store email in mock email system
       const emails = await AsyncStorage.getItem('sentEmails');
       let sentEmails = [];
-      const parsed = safeJsonParse(emails, []);
-      sentEmails = Array.isArray(parsed) ? parsed : [];
-      if (!Array.isArray(parsed) && emails) {
+      const parsedEmails = safeJsonParse(emails, []);
+      sentEmails = Array.isArray(parsedEmails) ? parsedEmails : [];
+      if (!Array.isArray(parsedEmails) && emails) {
         console.error('Failed to parse sent emails, clearing corrupted data');
         await AsyncStorage.removeItem('sentEmails');
       }
@@ -245,9 +245,9 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       // Add to system logs
       const logs = await AsyncStorage.getItem('systemLogs');
       let systemLogs = [];
-      const parsed = safeJsonParse(logs, []);
-      systemLogs = Array.isArray(parsed) ? parsed : [];
-      if (!Array.isArray(parsed) && logs) {
+      const parsedLogs = safeJsonParse(logs, []);
+      systemLogs = Array.isArray(parsedLogs) ? parsedLogs : [];
+      if (!Array.isArray(parsedLogs) && logs) {
         console.error('Failed to parse system logs, clearing corrupted data');
         await AsyncStorage.removeItem('systemLogs');
       }
