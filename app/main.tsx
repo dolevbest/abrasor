@@ -64,7 +64,7 @@ export default function MainScreen() {
       if (reloadCalculators) {
         reloadCalculators();
       }
-    }, 100); // Small delay to allow hydration to complete
+    }, 500); // Increased delay to allow hydration to complete
     
     return () => clearTimeout(timer);
   }, [reloadCalculators]);

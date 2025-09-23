@@ -183,51 +183,60 @@ interface ThemeState {
 }
 
 export const [ThemeProvider, useTheme] = createContextHook<ThemeState>(() => {
-  const { user, updateProfile } = useAuth();
   const systemColorScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
   const [colorblindMode, setColorblindModeState] = useState<ColorblindMode>('none');
   const [fontSize, setFontSizeState] = useState<FontSize>('medium');
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(systemColorScheme === 'dark');
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  const loadThemePreference = useCallback(async () => {
-    try {
-      if (user?.themePreference) {
-        setThemeModeState(user.themePreference);
-      } else {
-        const stored = await AsyncStorage.getItem('themeMode');
-        if (stored) {
-          setThemeModeState(stored as ThemeMode);
+  // Load theme preferences on mount without blocking render
+  useEffect(() => {
+    const loadThemePreference = async () => {
+      try {
+        const [storedTheme, storedColorblind, storedFontSize] = await Promise.all([
+          AsyncStorage.getItem('themeMode'),
+          AsyncStorage.getItem('colorblindMode'),
+          AsyncStorage.getItem('fontSize')
+        ]);
+        
+        if (storedTheme && ['light', 'dark', 'system'].includes(storedTheme)) {
+          setThemeModeState(storedTheme as ThemeMode);
         }
-      }
-      
-      // Load colorblind mode
-      if (user?.colorblindMode) {
-        setColorblindModeState(user.colorblindMode);
-      } else {
-        const storedColorblind = await AsyncStorage.getItem('colorblindMode');
-        if (storedColorblind) {
+        
+        if (storedColorblind && ['none', 'protanopia', 'deuteranopia', 'tritanopia'].includes(storedColorblind)) {
           setColorblindModeState(storedColorblind as ColorblindMode);
         }
-      }
-      
-      // Load font size
-      if (user?.fontSize) {
-        setFontSizeState(user.fontSize);
-      } else {
-        const storedFontSize = await AsyncStorage.getItem('fontSize');
-        if (storedFontSize) {
+        
+        if (storedFontSize && ['small', 'medium', 'large', 'extra-large'].includes(storedFontSize)) {
           setFontSizeState(storedFontSize as FontSize);
         }
+      } catch (error) {
+        console.error('Failed to load theme preference:', error);
+      } finally {
+        setIsInitialized(true);
       }
-    } catch (error) {
-      console.error('Failed to load theme preference:', error);
-    }
-  }, [user]);
+    };
 
-  useEffect(() => {
     loadThemePreference();
-  }, [loadThemePreference]);
+  }, []);
+
+  // Update user preferences when auth context is available
+  const { user, updateProfile } = useAuth();
+  useEffect(() => {
+    if (!isInitialized || !user) return;
+    
+    // Sync with user preferences if available
+    if (user.themePreference && user.themePreference !== themeMode) {
+      setThemeModeState(user.themePreference);
+    }
+    if (user.colorblindMode && user.colorblindMode !== colorblindMode) {
+      setColorblindModeState(user.colorblindMode);
+    }
+    if (user.fontSize && user.fontSize !== fontSize) {
+      setFontSizeState(user.fontSize);
+    }
+  }, [user, isInitialized, themeMode, colorblindMode, fontSize]);
 
   useEffect(() => {
     const dark = themeMode === 'system' 
@@ -242,28 +251,45 @@ export const [ThemeProvider, useTheme] = createContextHook<ThemeState>(() => {
     if (!mode || !['light', 'dark', 'system'].includes(mode)) return;
     
     setThemeModeState(mode);
-    await AsyncStorage.setItem('themeMode', mode);
     
-    if (user) {
-      await updateProfile({ themePreference: mode });
+    // Store in AsyncStorage without blocking UI
+    AsyncStorage.setItem('themeMode', mode).catch(error => {
+      console.error('Failed to save theme mode:', error);
+    });
+    
+    // Update user profile if available
+    if (user && updateProfile) {
+      updateProfile({ themePreference: mode }).catch(error => {
+        console.error('Failed to update user theme preference:', error);
+      });
     }
   }, [user, updateProfile]);
   
   const setColorblindMode = useCallback(async (mode: ColorblindMode) => {
     setColorblindModeState(mode);
-    await AsyncStorage.setItem('colorblindMode', mode);
     
-    if (user) {
-      await updateProfile({ colorblindMode: mode });
+    AsyncStorage.setItem('colorblindMode', mode).catch(error => {
+      console.error('Failed to save colorblind mode:', error);
+    });
+    
+    if (user && updateProfile) {
+      updateProfile({ colorblindMode: mode }).catch(error => {
+        console.error('Failed to update user colorblind mode:', error);
+      });
     }
   }, [user, updateProfile]);
   
   const setFontSize = useCallback(async (size: FontSize) => {
     setFontSizeState(size);
-    await AsyncStorage.setItem('fontSize', size);
     
-    if (user) {
-      await updateProfile({ fontSize: size });
+    AsyncStorage.setItem('fontSize', size).catch(error => {
+      console.error('Failed to save font size:', error);
+    });
+    
+    if (user && updateProfile) {
+      updateProfile({ fontSize: size }).catch(error => {
+        console.error('Failed to update user font size:', error);
+      });
     }
   }, [user, updateProfile]);
 
