@@ -189,14 +189,6 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       }
     } catch (error: any) {
       console.error('❌ Login error:', error);
-      
-      // Check for specific error types
-      if (error.message?.includes('JSON')) {
-        console.log('🧹 JSON error detected during login, clearing corrupted data...');
-        await clearCorruptedData();
-        throw new Error('Login failed due to corrupted data. Please try again.');
-      }
-      
       throw new Error(error.message || 'Login failed');
     }
   };

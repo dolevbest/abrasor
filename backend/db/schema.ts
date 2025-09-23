@@ -338,7 +338,7 @@ function insertDefaultAdmin() {
       id: 'admin-1',
       email: 'dolevb@cgwheels.com',
       name: 'Dolev B',
-      password: 'Do123456$$', // In production, this should be hashed
+      password: 'Do123456$', // In production, this should be hashed
       role: 'admin',
       status: 'approved',
       unit_preference: 'metric',
