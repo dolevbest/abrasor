@@ -32,6 +32,7 @@ interface AuthState {
   updateProfile: (updates: Partial<User>) => Promise<void>;
   continueAsGuest: () => Promise<void>;
   upgradeFromGuest: () => void;
+  resetApp: () => Promise<void>;
 }
 
 export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
@@ -86,9 +87,14 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
         'unitSystem',
         'guestCalculations',
         'sentEmails',
-        'systemLogs'
+        'systemLogs',
+        'guestModeEnabled',
+        'maintenanceMode'
       ]);
       console.log('✅ Cleared corrupted AsyncStorage data');
+      // Reset state after clearing
+      setUser(null);
+      setIsGuest(false);
     } catch (error) {
       console.error('❌ Failed to clear corrupted data:', error);
     }
@@ -307,6 +313,17 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     setIsGuest(false);
   };
 
+  const resetApp = async () => {
+    try {
+      console.log('🔄 Resetting app to clean state...');
+      await clearCorruptedData();
+      setIsLoading(false);
+      console.log('✅ App reset completed');
+    } catch (error) {
+      console.error('❌ Failed to reset app:', error);
+    }
+  };
+
   return {
     user,
     isLoading,
@@ -318,5 +335,6 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     updateProfile,
     continueAsGuest,
     upgradeFromGuest,
+    resetApp,
   };
 });

@@ -21,7 +21,7 @@ import { useTheme } from '@/hooks/theme-context';
 import { ThemeSelector } from '@/components/ThemeSelector';
 
 export default function LoginScreen() {
-  const { login, isAuthenticated, continueAsGuest } = useAuth();
+  const { login, isAuthenticated, continueAsGuest, resetApp } = useAuth();
   const { theme, isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,6 +30,7 @@ export default function LoginScreen() {
   const [isGuestLoading, setIsGuestLoading] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -101,12 +102,51 @@ export default function LoginScreen() {
           'Your access request is currently being reviewed by our administrators. Please wait for approval.\n\nYou will receive an email notification once your request is processed.',
           [{ text: 'OK' }]
         );
+      } else if (errorMessage.includes('corrupted data')) {
+        Alert.alert(
+          'Login Failed',
+          errorMessage + '\n\nTip: Try using the "Reset App" button below to clear corrupted data.',
+          [{ text: 'OK' }]
+        );
       } else {
         Alert.alert('Login Failed', errorMessage);
       }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleResetApp = async () => {
+    Alert.alert(
+      'Reset App',
+      'This will clear all app data and reset the app to its initial state. This action cannot be undone.\n\nAre you sure you want to continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            setIsResetting(true);
+            try {
+              await resetApp();
+              Alert.alert(
+                'App Reset Complete',
+                'The app has been reset to its initial state. You can now try logging in again.',
+                [{ text: 'OK' }]
+              );
+            } catch (error: any) {
+              Alert.alert(
+                'Reset Failed',
+                error.message || 'Failed to reset app. Please try again.',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              setIsResetting(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleGuestMode = async () => {
@@ -291,6 +331,20 @@ export default function LoginScreen() {
             <Text style={[styles.guestInfoText, { color: theme.textSecondary }]}>
               Guest mode: Use calculators without an account. Data saved locally on your device.
             </Text>
+
+            <TouchableOpacity
+              style={[styles.resetButton, { backgroundColor: theme.background, borderColor: theme.error || '#ff4444' }]}
+              onPress={handleResetApp}
+              disabled={isResetting}
+            >
+              <Text style={[styles.resetButtonText, { color: theme.error || '#ff4444' }]}>
+                {isResetting ? 'Resetting...' : 'Reset App'}
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.resetInfoText, { color: theme.textSecondary }]}>
+              Use this if you're experiencing login issues due to corrupted data.
+            </Text>
             
             {__DEV__ && (
               <TouchableOpacity
@@ -418,7 +472,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
   },
-
   settingsButton: {
     position: 'absolute',
     top: 50,
@@ -484,6 +537,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 11,
     color: Colors.textSecondary,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  resetButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  resetButtonText: {
+    fontSize: 16,
+    fontWeight: '500' as const,
+  },
+  resetInfoText: {
+    textAlign: 'center',
+    fontSize: 11,
     marginTop: 8,
     marginBottom: 8,
   },
