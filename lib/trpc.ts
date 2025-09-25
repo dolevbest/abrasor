@@ -55,8 +55,8 @@ const getBaseUrl = (): string => {
     return base.replace(/\/$/, '');
   }
 
-  // Fallback - for web use relative URLs, for mobile try localhost
-  const fallbackUrl = Platform.OS === 'web' ? '' : 'http://localhost:3000';
+  // Fallback - for web use relative URLs, for mobile try localhost:3001 (backend server port)
+  const fallbackUrl = Platform.OS === 'web' ? '' : 'http://localhost:3001';
   console.warn('⚠️ Could not determine API base URL. Using fallback:', fallbackUrl || 'relative');
   return fallbackUrl;
 };
@@ -270,7 +270,10 @@ export const trpcClient = trpc.createClient({
           
           // Provide more helpful error messages based on error type
           if (error?.message?.includes('Load failed') || error?.message?.includes('Network request failed')) {
-            throw new Error('Unable to connect to server. Please ensure the backend is running and accessible.');
+            const helpfulMessage = Platform.OS === 'web' 
+              ? 'Unable to connect to server. The backend may not be running.'
+              : 'Unable to connect to server. Please ensure the backend is running on localhost:3001 or check your network connection.';
+            throw new Error(helpfulMessage);
           }
           
           if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
@@ -279,6 +282,11 @@ export const trpcClient = trpc.createClient({
           
           if (error?.message?.includes('CORS')) {
             throw new Error('Server configuration error. Please contact support.');
+          }
+          
+          // Add specific error for connection refused (backend not running)
+          if (error?.message?.includes('ECONNREFUSED') || error?.message?.includes('Connection refused')) {
+            throw new Error('Backend server is not running. Please start the backend server first.');
           }
           
           throw error;
