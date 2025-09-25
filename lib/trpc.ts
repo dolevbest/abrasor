@@ -1,23 +1,40 @@
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import { createTRPCReact } from "@trpc/react-query";
 import { httpLink } from "@trpc/client";
 import type { AppRouter } from "@/backend/trpc/app-router";
 import superjson from "superjson";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
-import Constants from 'expo-constants';
-
-const clearCorruptedData = async () => {
-  try {
-    console.log('🩹 Clearing potentially corrupted AsyncStorage data...');
-    const keys = ['user', 'rememberMe', 'settings', 'calculations', 'notifications', 'guestMode'];
-    await AsyncStorage.multiRemove(keys);
-    console.log('✅ Cleared AsyncStorage data');
-  } catch (error) {
-    console.error('❌ Error clearing AsyncStorage:', error);
-  }
-};
 
 export const trpc = createTRPCReact<AppRouter>();
+
+const ENV_BASE =
+  // Expo reads only EXPO_PUBLIC_* at runtime
+  (Constants?.expoConfig?.extra as any)?.EXPO_PUBLIC_API_BASE ||
+  process.env.EXPO_PUBLIC_API_BASE;
+
+// Fallbacks by platform (only used if no env provided)
+const FALLBACK_BASE =
+  Platform.OS === 'android' ? 'http://10.0.2.2:3001' :
+  Platform.OS === 'web'     ? 'http://localhost:3001' :
+                              'http://localhost:3001';
+
+const apiBase = (ENV_BASE || FALLBACK_BASE).replace(/\/$/, '');
+const trpcUrl = `${apiBase}/api/trpc`;
+
+console.log('🔗 API Base URL:', apiBase);
+console.log('🔗 tRPC URL:', trpcUrl);
+
+export const trpcClient = trpc.createClient({
+  transformer: superjson,
+  links: [
+    httpLink({
+      url: trpcUrl,
+      fetch(url, opts) {
+        return fetch(url, { ...opts, credentials: 'include' });
+      },
+    }),
+  ],
+});
 
 const getBaseUrl = (): string => {
   // For Rork platform, use the tunnel URL from the start script
