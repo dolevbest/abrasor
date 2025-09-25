@@ -4,7 +4,7 @@
 // Usage: bun run start-backend.ts
 
 import { serve } from "bun";
-import app from "./hono";
+import app from "./backend/hono";
 
 const port = 3001;
 
