@@ -21,7 +21,7 @@ import { useTheme } from '@/hooks/theme-context';
 import { ThemeSelector } from '@/components/ThemeSelector';
 
 export default function LoginScreen() {
-  const { login, isAuthenticated, continueAsGuest, resetApp } = useAuth();
+  const { login, isAuthenticated, continueAsGuest, resetApp, enableOfflineMode, isOfflineMode } = useAuth();
   const { theme, isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -108,11 +108,17 @@ export default function LoginScreen() {
           'Login failed due to corrupted data. The app data has been cleared automatically. Please try logging in again.',
           [{ text: 'OK' }]
         );
-      } else if (errorMessage.includes('timeout') || errorMessage.includes('network') || errorMessage.includes('connection')) {
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('network') || errorMessage.includes('connection') || errorMessage.includes('Unable to connect')) {
         Alert.alert(
           'Connection Error',
-          'Unable to connect to the server. Please check your internet connection and try again.',
-          [{ text: 'OK' }]
+          'Unable to connect to the server. The app has been switched to offline mode. You can continue as a guest to use basic features.',
+          [
+            { text: 'OK' },
+            { 
+              text: 'Continue as Guest', 
+              onPress: () => handleGuestMode()
+            }
+          ]
         );
       } else {
         Alert.alert('Login Failed', errorMessage);
@@ -335,8 +341,16 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             <Text style={[styles.guestInfoText, { color: theme.textSecondary }]}>
-              Guest mode: Use calculators without an account. Data saved locally on your device.
+              {isOfflineMode ? 'Offline mode: ' : 'Guest mode: '}Use calculators without an account. Data saved locally on your device.
             </Text>
+            
+            {isOfflineMode && (
+              <View style={[styles.offlineBanner, { backgroundColor: theme.warning || '#ff9500' }]}>
+                <Text style={[styles.offlineBannerText, { color: theme.surface }]}>
+                  🔌 Offline Mode - Server connection unavailable
+                </Text>
+              </View>
+            )}
 
             <TouchableOpacity
               style={[styles.resetButton, { backgroundColor: theme.background, borderColor: theme.error || '#ff4444' }]}
@@ -600,5 +614,16 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 12,
     fontWeight: '500' as const,
+  },
+  offlineBanner: {
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  offlineBannerText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    textAlign: 'center',
   },
 });

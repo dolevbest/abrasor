@@ -20,6 +20,7 @@ const clearCorruptedData = async () => {
 export const trpc = createTRPCReact<AppRouter>();
 
 const getBaseUrl = (): string => {
+  // For Rork platform, use the tunnel URL from the start script
   const envUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
   if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
     console.log('🌐 Using configured base URL:', envUrl);
@@ -32,26 +33,30 @@ const getBaseUrl = (): string => {
     return origin.replace(/\/$/, '');
   }
 
+  // For Rork development environment, try to use the tunnel URL
   const anyConstants = Constants as unknown as {
     expoConfig?: { hostUri?: string };
     expoGoConfig?: { debuggerHost?: string };
+    manifest?: { debuggerHost?: string; hostUri?: string };
   };
 
-  const hostUri = anyConstants.expoConfig?.hostUri ?? '';
-  const dbgHost = anyConstants.expoGoConfig?.debuggerHost ?? '';
+  const hostUri = anyConstants.expoConfig?.hostUri ?? anyConstants.manifest?.hostUri ?? '';
+  const dbgHost = anyConstants.expoGoConfig?.debuggerHost ?? anyConstants.manifest?.debuggerHost ?? '';
 
   const hostPort = (hostUri || dbgHost).trim();
   if (hostPort) {
     const [host, port] = hostPort.split(':');
+    // For Rork tunnel URLs, always use https
+    const isRorkTunnel = host.includes('rork.com') || host.includes('tunnel');
     const isLocal = host.includes('127.0.0.1') || host.includes('localhost') || host.startsWith('10.') || host.startsWith('192.168.');
-    const protocol = isLocal ? 'http' : 'https';
-    const base = port ? `${protocol}://${host}:${port}` : `${protocol}://${host}`;
+    const protocol = isRorkTunnel || !isLocal ? 'https' : 'http';
+    const base = port && !isRorkTunnel ? `${protocol}://${host}:${port}` : `${protocol}://${host}`;
     console.log('🌐 Derived base URL from Expo host:', base);
     return base.replace(/\/$/, '');
   }
 
-  // Fallback to localhost for development
-  const fallbackUrl = Platform.OS === 'web' ? '' : 'http://localhost:8081';
+  // Fallback - for web use relative URLs, for mobile try localhost
+  const fallbackUrl = Platform.OS === 'web' ? '' : 'http://localhost:3000';
   console.warn('⚠️ Could not determine API base URL. Using fallback:', fallbackUrl || 'relative');
   return fallbackUrl;
 };
@@ -184,9 +189,16 @@ export const trpcClient = trpc.createClient({
       fetch(url, options) {
         console.log('🌐 tRPC fetch request:', url, options?.method ?? 'GET');
         const controller = new AbortController();
-        const timeoutMs = 10000;
+        const timeoutMs = 15000; // Increased timeout for tunnel connections
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-        const fetchOptions = { ...options, signal: controller.signal } as RequestInit;
+        const fetchOptions = { 
+          ...options, 
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            ...options?.headers,
+          }
+        } as RequestInit;
         return fetch(url, fetchOptions).then(async response => {
           clearTimeout(timeoutId);
           console.log('📡 tRPC response status:', response.status, response.statusText);
@@ -251,14 +263,22 @@ export const trpcClient = trpc.createClient({
         }).catch(error => {
           clearTimeout(timeoutId);
           if ((error as any)?.name === 'AbortError') {
-            console.error('❌ tRPC request timed out after 10 seconds');
+            console.error('❌ tRPC request timed out after 15 seconds');
             throw new Error('Request timed out. Please check your connection and ensure the backend server is running.');
           }
           console.error('❌ tRPC fetch error:', error);
           
-          // Provide more helpful error messages
+          // Provide more helpful error messages based on error type
           if (error?.message?.includes('Load failed') || error?.message?.includes('Network request failed')) {
             throw new Error('Unable to connect to server. Please ensure the backend is running and accessible.');
+          }
+          
+          if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
+            throw new Error('Network error. Please check your internet connection.');
+          }
+          
+          if (error?.message?.includes('CORS')) {
+            throw new Error('Server configuration error. Please contact support.');
           }
           
           throw error;

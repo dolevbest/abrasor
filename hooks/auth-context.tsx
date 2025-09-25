@@ -26,6 +26,7 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   isGuest: boolean;
+  isOfflineMode: boolean;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   requestAccess: (data: RequestAccessData) => Promise<void>;
@@ -33,12 +34,14 @@ interface AuthState {
   continueAsGuest: () => Promise<void>;
   upgradeFromGuest: () => void;
   resetApp: () => Promise<void>;
+  enableOfflineMode: () => Promise<void>;
 }
 
 export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -83,6 +86,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
         'user',
         'rememberMe', 
         'guestMode',
+        'offlineMode',
         'notifications',
         'unitSystem',
         'guestCalculations',
@@ -95,6 +99,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       // Reset state after clearing
       setUser(null);
       setIsGuest(false);
+      setIsOfflineMode(false);
     } catch (error) {
       console.error('❌ Failed to clear corrupted data:', error);
     }
@@ -151,6 +156,13 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
         console.log('🧹 Clearing user data (remember me disabled)');
         await AsyncStorage.removeItem('user');
       }
+      
+      // Check for offline mode
+      const offlineMode = await AsyncStorage.getItem('offlineMode');
+      if (offlineMode === 'true') {
+        console.log('🔌 Loading offline mode');
+        setIsOfflineMode(true);
+      }
     } catch (error) {
       console.error('❌ Failed to load user:', error);
       
@@ -206,6 +218,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       }
     } catch (error: any) {
       console.error('❌ Login error:', error);
+      console.error('❌ Login failed in handleLogin:', error);
       
       // Check if this is a JSON parse error or corrupted data issue
       if (error.message && (error.message.includes('JSON') || error.message.includes('parse') || error.message.includes('corrupted'))) {
@@ -215,8 +228,11 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       }
       
       // Check for network/connection issues
-      if (error.message && (error.message.includes('fetch') || error.message.includes('network') || error.message.includes('connection'))) {
-        throw new Error('Network error. Please check your internet connection and try again.');
+      if (error.message && (error.message.includes('fetch') || error.message.includes('network') || error.message.includes('connection') || error.message.includes('Load failed') || error.message.includes('Unable to connect'))) {
+        // Enable offline mode automatically for connection issues
+        console.log('🔌 Connection failed, enabling offline mode...');
+        await enableOfflineMode();
+        throw new Error('Unable to connect to server. Please ensure the backend is running and accessible.');
       }
       
       // Check for tRPC specific errors
@@ -305,6 +321,14 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       await trpcClient.auth.requestAccess.mutate(data);
     } catch (error: any) {
       console.error('Request access error:', error);
+      
+      // Check for network/connection issues
+      if (error.message && (error.message.includes('fetch') || error.message.includes('network') || error.message.includes('connection') || error.message.includes('Load failed') || error.message.includes('Unable to connect'))) {
+        console.log('🔌 Connection failed during request access, enabling offline mode...');
+        await enableOfflineMode();
+        throw new Error('Unable to connect to server. Please ensure the backend is running and accessible.');
+      }
+      
       throw new Error(error.message || 'Failed to submit access request');
     }
   };
@@ -344,10 +368,22 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     try {
       console.log('🔄 Resetting app to clean state...');
       await clearCorruptedData();
+      setIsOfflineMode(false);
       setIsLoading(false);
       console.log('✅ App reset completed');
     } catch (error) {
       console.error('❌ Failed to reset app:', error);
+    }
+  };
+
+  const enableOfflineMode = async () => {
+    try {
+      console.log('🔌 Enabling offline mode...');
+      await AsyncStorage.setItem('offlineMode', 'true');
+      setIsOfflineMode(true);
+      console.log('✅ Offline mode enabled');
+    } catch (error) {
+      console.error('❌ Failed to enable offline mode:', error);
     }
   };
 
@@ -356,6 +392,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     isLoading,
     isAuthenticated: !!user && user.status === 'approved',
     isGuest,
+    isOfflineMode,
     login,
     logout,
     requestAccess,
@@ -363,5 +400,6 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     continueAsGuest,
     upgradeFromGuest,
     resetApp,
+    enableOfflineMode,
   };
 });
