@@ -3,11 +3,12 @@ import { httpLink } from "@trpc/client";
 import type { AppRouter } from "@/backend/trpc/app-router";
 import superjson from "superjson";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// Utility to safely clear corrupted AsyncStorage data
 const clearCorruptedData = async () => {
   try {
-    console.log('🧹 Clearing potentially corrupted AsyncStorage data...');
+    console.log('🩹 Clearing potentially corrupted AsyncStorage data...');
     const keys = ['user', 'rememberMe', 'settings', 'calculations', 'notifications', 'guestMode'];
     await AsyncStorage.multiRemove(keys);
     console.log('✅ Cleared AsyncStorage data');
@@ -18,51 +19,57 @@ const clearCorruptedData = async () => {
 
 export const trpc = createTRPCReact<AppRouter>();
 
-const getBaseUrl = () => {
-  if (process.env.EXPO_PUBLIC_RORK_API_BASE_URL) {
-    console.log('🌐 Using configured base URL:', process.env.EXPO_PUBLIC_RORK_API_BASE_URL);
-    return process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
+const getBaseUrl = (): string => {
+  const envUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
+    console.log('🌐 Using configured base URL:', envUrl);
+    return envUrl.trim();
   }
 
-  // Fallback for development
-  const fallbackUrl = 'https://rork.com';
-  console.log('⚠️ No EXPO_PUBLIC_RORK_API_BASE_URL found, using fallback:', fallbackUrl);
-  return fallbackUrl;
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
+    console.log('🌐 Using same-origin (relative) base URL for web');
+    return '';
+  }
+
+  const hostUri = (Constants as { expoConfig?: { hostUri?: string } }).expoConfig?.hostUri ?? '';
+  if (hostUri) {
+    const [host] = hostUri.split(':');
+    const protocol = hostUri.includes('127.0.0.1') || hostUri.includes('localhost') ? 'http' : 'https';
+    const derived = `${protocol}://${host}`;
+    console.log('🌐 Derived base URL from Expo hostUri:', derived);
+    return derived;
+  }
+
+  console.warn('⚠️ Could not determine API base URL. Using relative path which may fail on native. Set EXPO_PUBLIC_RORK_API_BASE_URL.');
+  return '';
 };
 
 const baseUrl = getBaseUrl();
-const trpcUrl = `${baseUrl}/api/trpc`;
+const apiBase = baseUrl ? `${baseUrl}/api` : '/api';
+const trpcUrl = `${apiBase}/trpc`;
 console.log('🔗 tRPC URL:', trpcUrl);
 
-// Test the tRPC endpoint with timeout
-// Perform health check with better error handling
 const performHealthCheck = async () => {
   const healthCheckController = new AbortController();
-  const timeoutId = setTimeout(() => healthCheckController.abort(), 5000); // 5 second timeout
-  
+  const timeoutId = setTimeout(() => healthCheckController.abort(), 5000);
   try {
-    const response = await fetch(`${baseUrl}/api/`, { 
+    const response = await fetch(`${apiBase}/`, {
       signal: healthCheckController.signal,
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Accept': 'application/json' },
     });
-    
     clearTimeout(timeoutId);
     console.log('🏥 API health check status:', response.status);
-    
     if (response.ok) {
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       console.log('🏥 API health check response:', data);
       console.log('✅ API is healthy and reachable');
     } else {
       console.warn('⚠️ API health check returned non-200 status:', response.status);
     }
-  } catch (error) {
+  } catch (error: any) {
     clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
+    if (error?.name === 'AbortError') {
       console.error('❌ API health check timed out after 5 seconds');
     } else {
       console.error('❌ API health check failed:', error);
@@ -71,45 +78,37 @@ const performHealthCheck = async () => {
   }
 };
 
-// Run health check
 performHealthCheck();
 
-// Create tRPC client with enhanced error handling
 export const trpcClient = trpc.createClient({
   links: [
     httpLink({
       url: trpcUrl,
       transformer: superjson,
       async headers() {
-        // Get user token from AsyncStorage for authentication
         try {
           const storedUser = await AsyncStorage.getItem('user');
           if (storedUser && storedUser.trim()) {
             try {
-              // Validate JSON before parsing
               const trimmed = storedUser.trim();
               if (!trimmed || trimmed === 'undefined' || trimmed === 'null' ||
                   trimmed.includes('object Object') || trimmed.includes('[object') ||
-                  !trimmed.startsWith('{') || !trimmed.endsWith('}')) {
+                  (!trimmed.startsWith('{') || !trimmed.endsWith('}'))) {
                 console.warn('⚠️ Invalid user data format in AsyncStorage');
                 await clearCorruptedData();
                 return {};
               }
-              
-              const user = JSON.parse(trimmed);
+              const user = JSON.parse(trimmed) as { id?: string; email?: string };
               if (user && typeof user === 'object' && user.id) {
-                console.log('🔑 Using auth token for user:', user.email);
-                return {
-                  authorization: `Bearer ${user.id}`,
-                };
+                console.log('🔑 Using auth token for user:', user.email ?? 'unknown');
+                return { authorization: `Bearer ${user.id}` };
               } else {
                 console.warn('⚠️ Invalid user data format - missing required fields');
                 await clearCorruptedData();
               }
             } catch (parseError) {
               console.error('❌ Failed to parse stored user for auth:', parseError);
-              console.error('❌ Corrupted user data:', storedUser?.substring(0, 100));
-              // Clear all potentially corrupted data
+              console.error('❌ Corrupted user data:', storedUser.substring(0, 100));
               await clearCorruptedData();
             }
           }
@@ -119,22 +118,13 @@ export const trpcClient = trpc.createClient({
         return {};
       },
       fetch(url, options) {
-        console.log('🌐 tRPC fetch request:', url, options?.method || 'GET');
-        
-        // Add timeout to prevent hanging requests
+        console.log('🌐 tRPC fetch request:', url, options?.method ?? 'GET');
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
-        
-        const fetchOptions = {
-          ...options,
-          signal: controller.signal,
-        };
-        
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const fetchOptions = { ...options, signal: controller.signal } as RequestInit;
         return fetch(url, fetchOptions).then(async response => {
           clearTimeout(timeoutId);
           console.log('📡 tRPC response status:', response.status, response.statusText);
-          
-          // Always try to read the response text first for debugging
           let responseText = '';
           try {
             responseText = await response.clone().text();
@@ -142,40 +132,27 @@ export const trpcClient = trpc.createClient({
           } catch (textError) {
             console.error('❌ Could not read response text:', textError);
           }
-          
           if (!response.ok) {
             console.error('❌ tRPC response not ok:', response.status, response.statusText);
             console.error('❌ Full response body:', responseText);
-            
-            // Check if it's HTML (error page)
             if (responseText.trim().startsWith('<')) {
               console.error('❌ Server returned HTML instead of JSON - likely a routing or CORS issue');
               throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}`);
             }
-            
-            // Check if response is empty
             if (!responseText.trim()) {
               console.error('❌ Server returned empty response');
               throw new Error(`Server returned empty response. Status: ${response.status}`);
             }
-            
-            // Try to parse as JSON to see if it's a valid error response
             try {
               if (!responseText.trim() || responseText.includes('object Object') || 
                   responseText.includes('[object') || responseText.includes('Unexpected character')) {
                 throw new Error('Invalid JSON response format');
               }
-              const errorData = JSON.parse(responseText);
+              const errorData = JSON.parse(responseText) as unknown;
               console.error('❌ Server error response:', errorData);
-              
-              // Extract the actual error message from tRPC error format
-              if (errorData && Array.isArray(errorData) && errorData[0] && errorData[0].error) {
-                const tRPCError = errorData[0].error;
-                if (tRPCError.message) {
-                  throw new Error(tRPCError.message);
-                }
+              if (Array.isArray(errorData) && (errorData as any)[0]?.error?.message) {
+                throw new Error((errorData as any)[0].error.message as string);
               }
-              
               throw new Error(`Server error: ${response.status}`);
             } catch (parseError) {
               console.error('❌ Response is not valid JSON:', parseError);
@@ -183,41 +160,32 @@ export const trpcClient = trpc.createClient({
               throw new Error(`Server error: ${response.status} - ${response.statusText}`);
             }
           } else {
-            // Check if successful response is valid JSON for superjson compatibility
             if (responseText) {
               try {
-                // Validate response before parsing
                 const trimmed = responseText.trim();
                 if (!trimmed || trimmed.includes('object Object') || trimmed.includes('[object') ||
                     trimmed.includes('Unexpected character') || trimmed.includes('NaN') ||
                     trimmed.includes('Infinity')) {
                   throw new Error('Invalid JSON response format detected');
                 }
-                
-                // Try to parse the response to catch JSON errors early
                 JSON.parse(trimmed);
                 console.log('✅ Response is valid JSON');
               } catch (jsonError) {
                 console.error('❌ Response is not valid JSON:', jsonError);
                 console.error('❌ Invalid JSON response:', responseText.substring(0, 500));
-                
-                // Check for specific JSON parse error patterns
                 if (responseText.includes('Unexpected character') || responseText.includes('object Object')) {
                   console.error('❌ Detected JSON parse error - likely corrupted data');
-                  // Clear corrupted AsyncStorage data
                   await clearCorruptedData();
                   throw new Error('JSON Parse Error: Corrupted data detected and cleared. Please try again.');
                 }
-                
-                throw new Error(`Invalid JSON response: ${jsonError}`);
+                throw new Error(`Invalid JSON response: ${String(jsonError)}`);
               }
             }
           }
-          
           return response;
         }).catch(error => {
           clearTimeout(timeoutId);
-          if (error.name === 'AbortError') {
+          if ((error as any)?.name === 'AbortError') {
             console.error('❌ tRPC request timed out after 8 seconds');
             throw new Error('Request timed out. Please check your internet connection.');
           }
