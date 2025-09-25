@@ -31,12 +31,18 @@ const getBaseUrl = (): string => {
     return '';
   }
 
-  const hostUri = (Constants as { expoConfig?: { hostUri?: string } }).expoConfig?.hostUri ?? '';
-  if (hostUri) {
-    const [host] = hostUri.split(':');
-    const protocol = hostUri.includes('127.0.0.1') || hostUri.includes('localhost') ? 'http' : 'https';
+  const anyConstants = Constants as unknown as {
+    expoConfig?: { hostUri?: string };
+    expoGoConfig?: { debuggerHost?: string };
+  };
+  const hostUri = anyConstants.expoConfig?.hostUri ?? '';
+  const dbgHost = anyConstants.expoGoConfig?.debuggerHost ?? '';
+  const fromDebugHost = dbgHost ? dbgHost.split(':')[0] : '';
+  const host = hostUri ? hostUri.split(':')[0] : fromDebugHost;
+  if (host) {
+    const protocol = host.includes('127.0.0.1') || host.includes('localhost') || host.startsWith('10.') || host.startsWith('192.168.') ? 'http' : 'https';
     const derived = `${protocol}://${host}`;
-    console.log('🌐 Derived base URL from Expo hostUri:', derived);
+    console.log('🌐 Derived base URL from Expo host:', derived);
     return derived;
   }
 
@@ -51,7 +57,7 @@ console.log('🔗 tRPC URL:', trpcUrl);
 
 const performHealthCheck = async () => {
   const healthCheckController = new AbortController();
-  const timeoutId = setTimeout(() => healthCheckController.abort(), 5000);
+  const timeoutId = setTimeout(() => healthCheckController.abort(), 10000);
   try {
     const response = await fetch(`${apiBase}/`, {
       signal: healthCheckController.signal,
@@ -70,7 +76,7 @@ const performHealthCheck = async () => {
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error?.name === 'AbortError') {
-      console.error('❌ API health check timed out after 5 seconds');
+      console.error('❌ API health check timed out after 10 seconds');
     } else {
       console.error('❌ API health check failed:', error);
       console.error('❌ This may indicate network issues or server problems');
@@ -81,10 +87,10 @@ const performHealthCheck = async () => {
 performHealthCheck();
 
 export const trpcClient = trpc.createClient({
+  transformer: superjson,
   links: [
     httpLink({
       url: trpcUrl,
-      transformer: superjson,
       async headers() {
         try {
           const storedUser = await AsyncStorage.getItem('user');
@@ -120,7 +126,8 @@ export const trpcClient = trpc.createClient({
       fetch(url, options) {
         console.log('🌐 tRPC fetch request:', url, options?.method ?? 'GET');
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const timeoutMs = 20000;
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         const fetchOptions = { ...options, signal: controller.signal } as RequestInit;
         return fetch(url, fetchOptions).then(async response => {
           clearTimeout(timeoutId);
@@ -186,7 +193,7 @@ export const trpcClient = trpc.createClient({
         }).catch(error => {
           clearTimeout(timeoutId);
           if ((error as any)?.name === 'AbortError') {
-            console.error('❌ tRPC request timed out after 8 seconds');
+            console.error('❌ tRPC request timed out after 20000 ms');
             throw new Error('Request timed out. Please check your internet connection.');
           }
           console.error('❌ tRPC fetch error:', error);
