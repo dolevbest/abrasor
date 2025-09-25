@@ -3,11 +3,12 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "bunx rork start -p x4hkg7uy7ytkrb66mzysg --tunnel",
-    "start-web": "bunx rork start -p x4hkg7uy7ytkrb66mzysg --web --tunnel",
-    "start-web-dev": "DEBUG=expo* bunx rork start -p x4hkg7uy7ytkrb66mzysg --web --tunnel",
-    "lint": "expo lint"
-  },
+  "start": "bunx rork start -p x4hkg7uy7ytkrb66mzysg --tunnel",
+  "start-web": "bunx rork start -p x4hkg7uy7ytkrb66mzysg --web --tunnel",
+  "start-web-dev": "DEBUG=expo* bunx rork start -p x4hkg7uy7ytkrb66mzysg --web --tunnel",
+  "start-backend": "bun run start-backend.ts",
+  "lint": "expo lint"
+},
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
     "@hono/trpc-server": "^0.4.0",
