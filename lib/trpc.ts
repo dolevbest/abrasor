@@ -23,30 +23,34 @@ const getBaseUrl = (): string => {
   const envUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
   if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
     console.log('🌐 Using configured base URL:', envUrl);
-    return envUrl.trim();
+    return envUrl.trim().replace(/\/$/, '');
   }
 
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
-    console.log('🌐 Using same-origin (relative) base URL for web');
-    return '';
+    const origin = window.location.origin;
+    console.log('🌐 Using web origin for base URL:', origin);
+    return origin.replace(/\/$/, '');
   }
 
   const anyConstants = Constants as unknown as {
     expoConfig?: { hostUri?: string };
     expoGoConfig?: { debuggerHost?: string };
   };
+
   const hostUri = anyConstants.expoConfig?.hostUri ?? '';
   const dbgHost = anyConstants.expoGoConfig?.debuggerHost ?? '';
-  const fromDebugHost = dbgHost ? dbgHost.split(':')[0] : '';
-  const host = hostUri ? hostUri.split(':')[0] : fromDebugHost;
-  if (host) {
-    const protocol = host.includes('127.0.0.1') || host.includes('localhost') || host.startsWith('10.') || host.startsWith('192.168.') ? 'http' : 'https';
-    const derived = `${protocol}://${host}`;
-    console.log('🌐 Derived base URL from Expo host:', derived);
-    return derived;
+
+  const hostPort = (hostUri || dbgHost).trim();
+  if (hostPort) {
+    const [host, port] = hostPort.split(':');
+    const isLocal = host.includes('127.0.0.1') || host.includes('localhost') || host.startsWith('10.') || host.startsWith('192.168.');
+    const protocol = isLocal ? 'http' : 'https';
+    const base = port ? `${protocol}://${host}:${port}` : `${protocol}://${host}`;
+    console.log('🌐 Derived base URL from Expo host:', base);
+    return base.replace(/\/$/, '');
   }
 
-  console.warn('⚠️ Could not determine API base URL. Using relative path which may fail on native. Set EXPO_PUBLIC_RORK_API_BASE_URL.');
+  console.warn('⚠️ Could not determine API base URL. Falling back to relative which may fail on native. Set EXPO_PUBLIC_RORK_API_BASE_URL.');
   return '';
 };
 
