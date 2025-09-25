@@ -3,7 +3,15 @@
 // Simple script to start the backend server
 // Usage: bun run start-backend.ts
 
-import { $ } from "bun";
+import { serve } from "bun";
+import app from "./hono";
+
+const port = 3001;
+
+serve({
+    fetch: app.fetch,
+    port,
+});
 
 console.log("🚀 Starting Abrasor Backend Server...");
 console.log("📍 Backend:           http://localhost:3001");
