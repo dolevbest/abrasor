@@ -41,7 +41,7 @@ app.use(
     endpoint: "/api/trpc",
     router: appRouter,
     createContext,
-    transformer
+    transformer: superjson,
   })
 );
 
