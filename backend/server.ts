@@ -1,5 +1,5 @@
 import { serve } from "bun";
-import app from "./backend/hono";
+import app from "./hono";
 
 const port = process.env.PORT || 3001;
 
