@@ -6,24 +6,16 @@
 import { serve } from "bun";
 import app from "./backend/hono";
 
-const port = 3001;
-
-serve({
-    fetch: app.fetch,
-    port,
-});
+const port = process.env.PORT || 3001;
 
 console.log("🚀 Starting Abrasor Backend Server...");
-console.log("📍 Backend:           http://localhost:3001");
-console.log("🔗 Health:            http://localhost:3001/api");
-console.log("📡 tRPC endpoint:     http://localhost:3001/api/trpc");
+console.log(`📍 Backend:           http://localhost:${port}/api`);
+console.log(`📡 tRPC endpoint:     http://localhost:${port}/api/trpc`);
 console.log("");
 console.log("Press Ctrl+C to stop the server");
 console.log("=".repeat(50));
 
-try {
-  await $`bun run backend/server.ts`;
-} catch (error) {
-  console.error("❌ Failed to start backend server:", error);
-  process.exit(1);
-}
+serve({
+  fetch: app.fetch,
+  port: Number(port),
+});
