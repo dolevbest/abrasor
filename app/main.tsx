@@ -27,7 +27,7 @@ import { useNotifications } from '@/hooks/notifications-context';
 import AbrasorLogo from '@/components/AbrasorLogo';
 import UnitToggle from '@/components/UnitToggle';
 import GuestUpgradeForm from '@/components/GuestUpgradeForm';
-import { trpc } from '@/lib/trpc';
+import { trpc, testBackendConnection } from '@/lib/trpc';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 
@@ -167,18 +167,36 @@ export default function MainScreen() {
   const testBackend = async () => {
     try {
       console.log('🧪 Testing backend connection...');
+      
+      // First test basic connectivity
+      const connectionTest = await testBackendConnection();
+      if (!connectionTest.success) {
+        Alert.alert('Backend Test', `Connection Failed: ${connectionTest.message}`);
+        return;
+      }
+      
+      // Then test tRPC endpoint
       const result = await trpc.example.hi.mutate({ name: 'Test' });
       console.log('✅ Backend test result:', result);
       Alert.alert('Backend Test', `Success! Response: ${JSON.stringify(result)}`);
     } catch (error) {
       console.error('❌ Backend test failed:', error);
-      Alert.alert('Backend Test', `Error: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      Alert.alert('Backend Test', `tRPC Error: ${errorMessage}`);
     }
   };
 
   const clearCorruptedData = async () => {
     try {
       console.log('🧹 Clearing corrupted data...');
+      
+      // First test backend connectivity
+      const connectionTest = await testBackendConnection();
+      if (!connectionTest.success) {
+        Alert.alert('Clear Corrupted Data', `Backend not available: ${connectionTest.message}`);
+        return;
+      }
+      
       const result = await trpc.calculators.clearCorrupted.mutate();
       console.log('✅ Clear corrupted result:', result);
       Alert.alert('Clear Corrupted Data', `Success! ${result.message || 'Data cleared'}`);
@@ -188,7 +206,8 @@ export default function MainScreen() {
       }
     } catch (error) {
       console.error('❌ Clear corrupted failed:', error);
-      Alert.alert('Clear Corrupted Data', `Error: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      Alert.alert('Clear Corrupted Data', `Error: ${errorMessage}`);
     }
   };
 

@@ -50,18 +50,29 @@ const getBaseUrl = (): string => {
     return base.replace(/\/$/, '');
   }
 
-  console.warn('⚠️ Could not determine API base URL. Falling back to relative which may fail on native. Set EXPO_PUBLIC_RORK_API_BASE_URL.');
-  return '';
+  // Fallback to localhost for development
+  const fallbackUrl = Platform.OS === 'web' ? '' : 'http://localhost:8081';
+  console.warn('⚠️ Could not determine API base URL. Using fallback:', fallbackUrl || 'relative');
+  return fallbackUrl;
 };
 
 const baseUrl = getBaseUrl();
 const apiBase = baseUrl ? `${baseUrl}/api` : '/api';
 const trpcUrl = `${apiBase}/trpc`;
 console.log('🔗 tRPC URL:', trpcUrl);
+console.log('🔗 API Base URL:', apiBase);
+console.log('🔗 Base URL:', baseUrl || 'relative');
+console.log('🔗 Platform:', Platform.OS);
 
 const performHealthCheck = async () => {
+  // Skip health check if no base URL is available
+  if (!baseUrl && Platform.OS !== 'web') {
+    console.warn('⚠️ Skipping health check - no base URL available');
+    return;
+  }
+
   const healthCheckController = new AbortController();
-  const timeoutId = setTimeout(() => healthCheckController.abort(), 10000);
+  const timeoutId = setTimeout(() => healthCheckController.abort(), 5000);
   try {
     const response = await fetch(`${apiBase}/`, {
       signal: healthCheckController.signal,
@@ -80,15 +91,58 @@ const performHealthCheck = async () => {
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error?.name === 'AbortError') {
-      console.error('❌ API health check timed out after 10 seconds');
+      console.warn('⚠️ API health check timed out after 5 seconds');
     } else {
-      console.error('❌ API health check failed:', error);
-      console.error('❌ This may indicate network issues or server problems');
+      console.warn('⚠️ API health check failed:', error?.message || error);
+      console.warn('⚠️ This may indicate the backend server is not running');
     }
   }
 };
 
-performHealthCheck();
+// Perform health check with delay to avoid blocking app startup
+if (typeof window !== 'undefined' || Platform.OS !== 'web') {
+  setTimeout(() => {
+    performHealthCheck();
+  }, 3000);
+}
+
+// Export a function to test backend connectivity
+export const testBackendConnection = async (): Promise<{ success: boolean; message: string }> => {
+  try {
+    console.log('🧪 Testing backend connection...');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch(`${apiBase}/`, {
+      signal: controller.signal,
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
+      const data = await response.json().catch(() => ({ status: 'ok' }));
+      console.log('✅ Backend connection test successful:', data);
+      return { success: true, message: `Backend is running (Status: ${response.status})` };
+    } else {
+      console.warn('⚠️ Backend returned non-200 status:', response.status);
+      return { success: false, message: `Backend returned status ${response.status}` };
+    }
+  } catch (error: any) {
+    console.error('❌ Backend connection test failed:', error);
+    
+    if (error?.name === 'AbortError') {
+      return { success: false, message: 'Connection timed out - backend may not be running' };
+    }
+    
+    if (error?.message?.includes('Load failed') || error?.message?.includes('Network request failed')) {
+      return { success: false, message: 'Unable to connect to backend server - please ensure it is running' };
+    }
+    
+    return { success: false, message: `Connection error: ${error?.message || 'Unknown error'}` };
+  }
+};
 
 export const trpcClient = trpc.createClient({
   transformer: superjson,
@@ -130,7 +184,7 @@ export const trpcClient = trpc.createClient({
       fetch(url, options) {
         console.log('🌐 tRPC fetch request:', url, options?.method ?? 'GET');
         const controller = new AbortController();
-        const timeoutMs = 20000;
+        const timeoutMs = 10000;
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         const fetchOptions = { ...options, signal: controller.signal } as RequestInit;
         return fetch(url, fetchOptions).then(async response => {
@@ -197,10 +251,16 @@ export const trpcClient = trpc.createClient({
         }).catch(error => {
           clearTimeout(timeoutId);
           if ((error as any)?.name === 'AbortError') {
-            console.error('❌ tRPC request timed out after 20000 ms');
-            throw new Error('Request timed out. Please check your internet connection.');
+            console.error('❌ tRPC request timed out after 10 seconds');
+            throw new Error('Request timed out. Please check your connection and ensure the backend server is running.');
           }
           console.error('❌ tRPC fetch error:', error);
+          
+          // Provide more helpful error messages
+          if (error?.message?.includes('Load failed') || error?.message?.includes('Network request failed')) {
+            throw new Error('Unable to connect to server. Please ensure the backend is running and accessible.');
+          }
+          
           throw error;
         });
       },
