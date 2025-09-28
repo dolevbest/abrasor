@@ -26,6 +26,16 @@ app.get("/api", (c) =>
   })
 );
 
+// Add this test route before your tRPC mount
+app.get("/api/test", (c) => {
+  return c.json({
+    status: "success",
+    message: "Connection working!",
+    timestamp: new Date().toISOString(),
+    headers: Object.fromEntries(c.req.raw.headers.entries())
+  });
+});
+
 // Mount tRPC at /api/trpc
 app.use(
   "/api/trpc/*",
