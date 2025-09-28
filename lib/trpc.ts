@@ -7,25 +7,39 @@ import superjson from "superjson";
 
 export const trpc = createTRPCReact<AppRouter>();
 
-// 1. Try environment variable from app.config.js (expo extra)
-const ENV_BASE =
-  (Constants?.expoConfig?.extra as any)?.EXPO_PUBLIC_API_BASE ||
-  process.env.EXPO_PUBLIC_API_BASE;
+// Get API base URL with better environment handling
+const getApiBase = () => {
+  // 1. Try environment variable from app.config.js
+  const envBase = (Constants?.expoConfig?.extra as any)?.EXPO_PUBLIC_API_BASE 
+    || process.env.EXPO_PUBLIC_API_BASE;
+  
+  if (envBase) {
+    console.log("📡 Using environment API base:", envBase);
+    return envBase.replace(/\/$/, "");
+  }
+  
+  // 2. Platform-specific fallbacks
+  let fallback: string;
+  
+  if (Platform.OS === "android") {
+    // For Android emulator, use 10.0.2.2 to reach host machine
+    fallback = "http://10.0.2.2:3001";
+  } else if (Platform.OS === "web") {
+    // For web development
+    fallback = "http://localhost:3001";
+  } else {
+    // For iOS simulator, localhost should work
+    fallback = "http://localhost:3001";
+  }
+  
+  console.log("📡 Using fallback API base:", fallback);
+  return fallback;
+};
 
-// 2. Fallbacks if no env is provided
-const FALLBACK_BASE =
-  Platform.OS === "android"
-    ? "http://10.0.2.2:3001"
-    : Platform.OS === "web"
-    ? "http://localhost:3001"
-    : "http://localhost:3001";
-
-// 3. Final base URL (env > fallback)
-const apiBase = (ENV_BASE || FALLBACK_BASE).replace(/\/$/, "");
+const apiBase = getApiBase();
 const trpcUrl = `${apiBase}/api/trpc`;
 
-console.log("🔗 API Base URL:", apiBase);
-console.log("🔗 tRPC URL:", trpcUrl);
+console.log("🔗 Final tRPC URL:", trpcUrl);
 
 export const trpcClient = trpc.createClient({
   transformer: superjson,
@@ -33,7 +47,14 @@ export const trpcClient = trpc.createClient({
     httpLink({
       url: trpcUrl,
       fetch(url, opts) {
-        return fetch(url, { ...opts, credentials: "include" });
+        return fetch(url, { 
+          ...opts, 
+          credentials: "include",
+          headers: {
+            ...opts?.headers,
+            'Content-Type': 'application/json',
+          }
+        });
       },
     }),
   ],
