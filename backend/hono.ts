@@ -4,22 +4,29 @@ import { trpcServer } from "@hono/trpc-server";
 import { appRouter } from "./trpc/app-router";
 import { createContext } from "./trpc/create-context";
 import superjson from "superjson";
+import 'dotenv/config'; // Add this line
 
 const app = new Hono();
 
-// 🔧 Enable CORS (development: allow all origins)
-app.use("*", cors());
+// Enable CORS with more specific configuration
+app.use("*", cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://your-production-domain.com'] 
+    : true, // Allow all origins in development
+  credentials: true,
+}));
 
-// 🔧 Health check route
+// Health check route
 app.get("/api", (c) =>
   c.json({
     status: "ok",
     message: "API running",
     timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
   })
 );
 
-// 🔧 Mount tRPC at /api/trpc
+// Mount tRPC at /api/trpc
 app.use(
   "/api/trpc/*",
   trpcServer({
