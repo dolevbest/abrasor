@@ -1,4 +1,4 @@
-import { serve } from "bun";
+import { serve } from '@hono/node-server';
 import app from "./hono";
 
 const port = process.env.PORT || 3001;
@@ -22,13 +22,11 @@ try {
   // Handle graceful shutdown
   process.on('SIGINT', () => {
     console.log('\n🛑 Received SIGINT, shutting down gracefully...');
-    server.stop();
     process.exit(0);
   });
   
   process.on('SIGTERM', () => {
     console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
-    server.stop();
     process.exit(0);
   });
   

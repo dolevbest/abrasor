@@ -3,14 +3,15 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-  "start": "bunx rork start -p x4hkg7uy7ytkrb66mzysg --tunnel",
-  "start-web": "bunx rork start -p x4hkg7uy7ytkrb66mzysg --web --tunnel",
-  "start-web-dev": "DEBUG=expo* bunx rork start -p x4hkg7uy7ytkrb66mzysg --web --tunnel",
-  "start-backend": "bun run start-backend.ts",
-  "lint": "expo lint"
-},
+    "start": "bunx rork start -p x4hkg7uy7ytkrb66mzysg --tunnel",
+    "start-web": "bunx rork start -p x4hkg7uy7ytkrb66mzysg --web --tunnel",
+    "start-web-dev": "DEBUG=expo* bunx rork start -p x4hkg7uy7ytkrb66mzysg --web --tunnel",
+    "start-backend": "bun run start-backend.ts",
+    "lint": "expo lint"
+  },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
+    "@hono/node-server": "^1.19.4",
     "@hono/trpc-server": "^0.4.0",
     "@nkzw/create-context-hook": "^1.1.0",
     "@react-native-async-storage/async-storage": "2.1.2",
@@ -21,6 +22,7 @@
     "@trpc/react-query": "^11.5.1",
     "@trpc/server": "^11.5.1",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.5.2",
     "@types/uuid": "^11.0.0",
     "@ungap/structured-clone": "^1.3.0",
     "better-sqlite3": "^12.2.0",
@@ -56,6 +58,7 @@
     "react-native-svg": "15.11.2",
     "react-native-web": "^0.20.0",
     "superjson": "^2.2.2",
+    "tsx": "^4.20.6",
     "zod": "^4.1.11",
     "zustand": "^5.0.2"
   },

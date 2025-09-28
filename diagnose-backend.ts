@@ -1,7 +1,7 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 // Diagnostic script to test backend connectivity
-// Usage: bun run diagnose-backend.ts
+// Usage: tsx diagnose-backend.ts
 
 import { testBackendConnection } from "./lib/trpc";
 
@@ -23,7 +23,7 @@ async function runDiagnostics() {
       console.log("");
       console.log("🔧 Troubleshooting steps:");
       console.log("1. Make sure the backend server is running:");
-      console.log("   bun run start-backend.ts");
+      console.log("   npm run start-backend");
       console.log("2. Check if port 3001 is available");
       console.log("3. Verify your network connection");
     }
@@ -60,7 +60,7 @@ async function runDiagnostics() {
     console.log("📝 Error:", error.message);
     console.log("");
     console.log("💡 This likely means the backend server is not running.");
-    console.log("   Start it with: bun run start-backend.ts");
+    console.log("   Start it with: npm run start-backend");
   }
 }
 
