@@ -3,11 +3,14 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "npx rork start -p x4hkg7uy7ytkrb66mzysg --tunnel",
-    "start-web": "npx rork start -p x4hkg7uy7ytkrb66mzysg --web --tunnel",
-    "start-web-dev": "DEBUG=expo* npx rork start -p x4hkg7uy7ytkrb66mzysg --web --tunnel",
-    "start-backend": "tsx start-backend.ts",
-    "lint": "expo lint"
+    "start": "npx expo start --tunnel",
+    "start-web": "npx expo start --web --tunnel",
+    "start-web-dev": "DEBUG=expo* npx expo start --web --tunnel",
+    "start-backend": "node --loader tsx/esm start-backend.ts",
+    "lint": "expo lint",
+    "install": "npm install",
+    "dev": "npm run start",
+    "build": "npx expo export"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
