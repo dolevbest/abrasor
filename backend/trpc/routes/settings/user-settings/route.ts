@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { protectedProcedure } from '@/backend/trpc/create-context';
-import { getDatabase, DbUserSettings, dbUserSettingsToUserSettings } from '@/backend/db/schema';
+import { getDatabase, DbUserSettings, dbUserSettingsToUserSettings } from '@/backend/db/mysql_schema';
 
 export const getUserSettingsProcedure = protectedProcedure
   .query(async ({ ctx }) => {

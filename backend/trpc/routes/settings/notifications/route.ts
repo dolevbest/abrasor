@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { protectedProcedure } from '@/backend/trpc/create-context';
-import { getDatabase, DbNotification, dbNotificationToNotification } from '@/backend/db/schema';
+import { getDatabase, DbNotification, dbNotificationToNotification } from '@/backend/db/mysql_schema';
 import { v4 as uuidv4 } from 'uuid';
 
 export const getNotificationsProcedure = protectedProcedure
