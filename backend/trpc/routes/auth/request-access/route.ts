@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { publicProcedure } from '@/backend/trpc/create-context';
-import { getDatabase, DbAccessRequest } from '@/backend/db/schema';
+import { getDatabase, DbAccessRequest } from '@/backend/db/mysql_schema';
 import { TRPCError } from '@trpc/server';
 
 const requestAccessSchema = z.object({
