@@ -1,20 +1,36 @@
 import mysql from 'mysql2/promise';
-import 'dotenv/config';
+
+// Manually load .env file
+import * as fs from 'fs';
+const envContent = fs.readFileSync('.env', 'utf-8');
+console.log('📄 .env file content:');
+console.log(envContent);
+console.log('---');
+
+// Parse it manually
+const envVars: Record<string, string> = {};
+envContent.split('\n').forEach(line => {
+  const [key, ...valueParts] = line.split('=');
+  if (key && valueParts.length > 0) {
+    envVars[key.trim()] = valueParts.join('=').trim();
+  }
+});
+
+console.log('🔍 Parsed environment variables:');
+console.log('Host:', envVars.DB_HOST);
+console.log('Port:', envVars.DB_PORT);
+console.log('User:', envVars.DB_USER);
+console.log('Database:', envVars.DB_NAME);
+console.log('---');
 
 async function testConnection() {
-  console.log('🔍 Testing MySQL connection...');
-  console.log('Host:', process.env.DB_HOST);
-  console.log('Port:', process.env.DB_PORT);
-  console.log('User:', process.env.DB_USER);
-  console.log('Database:', process.env.DB_NAME);
-  
   try {
     const connection = await mysql.createConnection({
-      host: process.env.DB_HOST || 'abrasor.com',
-      port: parseInt(process.env.DB_PORT || '3306'),
-      user: process.env.DB_USER || 'dolevbest_abrasor',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || '',
+      host: envVars.DB_HOST || 'abrasor.com',
+      port: parseInt(envVars.DB_PORT || '3306'),
+      user: envVars.DB_USER || 'dolevbest_abrasor',
+      password: envVars.DB_PASSWORD || '',
+      database: envVars.DB_NAME || '',
       connectTimeout: 10000
     });
     
@@ -28,14 +44,6 @@ async function testConnection() {
   } catch (error: any) {
     console.error('❌ Connection failed:', error.message);
     console.error('Error code:', error.code);
-    
-    if (error.code === 'ECONNREFUSED') {
-      console.log('💡 Remote MySQL access is likely blocked');
-    } else if (error.code === 'ER_ACCESS_DENIED_ERROR') {
-      console.log('💡 Username or password is incorrect');
-    } else if (error.code === 'ETIMEDOUT') {
-      console.log('💡 Connection timed out - firewall or wrong host');
-    }
   }
 }
 
