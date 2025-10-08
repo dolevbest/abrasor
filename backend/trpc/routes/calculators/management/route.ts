@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { publicProcedure, protectedProcedure } from '@/backend/trpc/create-context';
-import { getDatabase, dbCalculatorToCalculator, calculatorToDbCalculator, DbCalculator } from '@/backend/db/schema';
+import { getDatabase, dbCalculatorToCalculator, calculatorToDbCalculator, DbCalculator } from '@/backend/db/mysql_schema';
 import { calculators as defaultCalculators } from '@/utils/calculators';
 import { TRPCError } from '@trpc/server';
 
