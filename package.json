@@ -3,15 +3,15 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "npx expo start --tunnel",
-    "start-web": "npx expo start --web --tunnel",
-    "start-web-dev": "DEBUG=expo* npx expo start --web --tunnel",
-    "start-backend": "node --loader tsx/esm start-backend.ts",
-    "lint": "expo lint",
-    "install": "npm install",
-    "dev": "npm run start",
-    "build": "npx expo export"
-  },
+  "start": "bun expo start --tunnel",
+  "start-web": "bun expo start --web",
+  "start-web-dev": "DEBUG=expo* bun expo start --web",
+  "start-backend": "bun start-backend.ts",
+  "lint": "bun expo lint",
+  "install": "",
+  "dev": "bun run start",
+  "build": "bun expo export"
+},
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
     "@hono/node-server": "^1.19.4",
