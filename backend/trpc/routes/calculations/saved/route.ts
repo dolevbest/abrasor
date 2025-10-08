@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { protectedProcedure } from '@/backend/trpc/create-context';
-import { getDatabase, dbSavedCalculationToSavedCalculation, savedCalculationToDbSavedCalculation, DbSavedCalculation } from '@/backend/db/schema';
+import { getDatabase, dbSavedCalculationToSavedCalculation, savedCalculationToDbSavedCalculation, DbSavedCalculation } from '@/backend/db/mysql_schema';
 import { TRPCError } from '@trpc/server';
 
 // Get user's saved calculations
