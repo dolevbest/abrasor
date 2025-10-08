@@ -38,5 +38,29 @@ export const createContext = async (opts: FetchCreateContextFnOptions) => {
     user,
   };
 };
+export type Context = Awaited<ReturnType<typeof createContext>>;
 
-// Rest of the file remains the same...
+// Initialize tRPC
+const t = initTRPC.context<Context>().create({
+  transformer: superjson,
+});
+
+export const createTRPCRouter = t.router;
+export const publicProcedure = t.procedure;
+
+// Protected procedure that requires authentication
+export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
+  if (!ctx.user) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'Authentication required'
+    });
+  }
+  
+  return next({
+    ctx: {
+      ...ctx,
+      user: ctx.user,
+    },
+  });
+});
