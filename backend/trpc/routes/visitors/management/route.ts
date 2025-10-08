@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { publicProcedure } from '@/backend/trpc/create-context';
-import { getDatabase, DbVisitorCalculation, DbVisitorSession, dbVisitorCalculationToVisitorCalculation, dbVisitorSessionToVisitorSession } from '@/backend/db/schema';
+import { getDatabase, DbVisitorCalculation, DbVisitorSession, dbVisitorCalculationToVisitorCalculation, dbVisitorSessionToVisitorSession } from '@/backend/db/mysql_schema';
 
 const VisitorCalculationSchema = z.object({
   calculatorType: z.string(),

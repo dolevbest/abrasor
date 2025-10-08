@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { publicProcedure } from '@/backend/trpc/create-context';
-import { getDatabase, dbUserToUser, dbAccessRequestToAccessRequest, DbUser, DbAccessRequest } from '@/backend/db/mysql_schema';
+import { getDatabase, dbUserToUser, dbAccessRequestToAccessRequest, DbUser, DbAccessRequest } from '@/backend/db/schema';
 import { TRPCError } from '@trpc/server';
 
 // Get all users (admin only)
