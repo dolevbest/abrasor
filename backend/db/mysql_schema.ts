@@ -2,6 +2,109 @@ import mysql from 'mysql2/promise';
 import { User, AccessRequest, UserRole, UserStatus, UnitSystem, Calculator } from '@/types';
 import { SavedCalculation } from '@/hooks/calculations-context';
 import { calculators as defaultCalculators } from '@/utils/calculators';
+import 'dotenv/config';
+
+// Database interfaces
+export interface DbUser {
+  id: string;
+  email: string;
+  name: string;
+  password: string;
+  role: UserRole;
+  status: UserStatus;
+  unit_preference: UnitSystem;
+  theme_preference?: string;
+  colorblind_mode?: string;
+  font_size?: string;
+  company?: string;
+  position?: string;
+  country?: string;
+  profile_image?: string;
+  created_at: string;
+  last_login?: string;
+}
+
+export interface DbAccessRequest {
+  id: string;
+  email: string;
+  name: string;
+  password: string;
+  company: string;
+  position: string;
+  country: string;
+  preferred_units: UnitSystem;
+  role: UserRole;
+  status: UserStatus;
+  created_at: string;
+  request_date: string;
+}
+
+export interface DbCalculator {
+  id: string;
+  name: string;
+  short_name: string;
+  description: string;
+  categories: string;
+  inputs: string;
+  formula: string;
+  result_unit_metric: string;
+  result_unit_imperial: string;
+  enabled: boolean;
+  usage_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbSavedCalculation {
+  id: string;
+  user_id: string;
+  calculator_id: string;
+  calculator_name: string;
+  calculator_short_name: string;
+  inputs: string;
+  result: string;
+  unit_system: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface DbNotification {
+  id: string;
+  user_id?: string;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  created_at: string;
+}
+
+export interface DbUserSettings {
+  user_id: string;
+  unit_preference: string;
+  theme_preference?: string;
+  colorblind_mode?: string;
+  font_size?: string;
+  notifications_enabled: boolean;
+  updated_at: string;
+}
+
+export interface DbVisitorCalculation {
+  id: string;
+  visitor_id: string;
+  calculator_type: string;
+  inputs: string;
+  results: string;
+  unit_system: string;
+  timestamp: string;
+}
+
+export interface DbVisitorSession {
+  id: string;
+  calculation_count: number;
+  max_calculations: number;
+  created_at: string;
+  last_activity: string;
+}
 
 // Database connection
 let connection: mysql.Connection;
@@ -20,13 +123,8 @@ export async function initDatabase() {
     
     console.log('✅ MySQL connection established');
     
-    // Create tables
     await createTables();
-    
-    // Insert default admin user if not exists
     await insertDefaultAdmin();
-    
-    // Initialize default calculators if none exist
     await initializeDefaultCalculators();
     
     return connection;
@@ -38,7 +136,6 @@ export async function initDatabase() {
 
 async function createTables() {
   const tables = [
-    // Users table
     `CREATE TABLE IF NOT EXISTS users (
       id VARCHAR(255) PRIMARY KEY,
       email VARCHAR(255) UNIQUE NOT NULL,
@@ -58,7 +155,6 @@ async function createTables() {
       last_login DATETIME DEFAULT NULL
     )`,
 
-    // Access requests table
     `CREATE TABLE IF NOT EXISTS access_requests (
       id VARCHAR(255) PRIMARY KEY,
       email VARCHAR(255) UNIQUE NOT NULL,
@@ -74,7 +170,6 @@ async function createTables() {
       request_date DATETIME NOT NULL
     )`,
 
-    // Calculators table
     `CREATE TABLE IF NOT EXISTS calculators (
       id VARCHAR(255) PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
@@ -91,7 +186,6 @@ async function createTables() {
       updated_at DATETIME NOT NULL
     )`,
 
-    // Saved calculations table
     `CREATE TABLE IF NOT EXISTS saved_calculations (
       id VARCHAR(255) PRIMARY KEY,
       user_id VARCHAR(255) NOT NULL,
@@ -106,19 +200,17 @@ async function createTables() {
       FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     )`,
 
-    // Notifications table
     `CREATE TABLE IF NOT EXISTS notifications (
       id VARCHAR(255) PRIMARY KEY,
       user_id VARCHAR(255),
       title VARCHAR(255) NOT NULL,
       message TEXT NOT NULL,
       type ENUM('info', 'warning', 'error', 'success') NOT NULL,
-      read BOOLEAN NOT NULL DEFAULT FALSE,
+      \`read\` BOOLEAN NOT NULL DEFAULT FALSE,
       created_at DATETIME NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     )`,
 
-    // User settings table
     `CREATE TABLE IF NOT EXISTS user_settings (
       user_id VARCHAR(255) PRIMARY KEY,
       unit_preference ENUM('metric', 'imperial') NOT NULL,
@@ -130,7 +222,6 @@ async function createTables() {
       FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     )`,
 
-    // Visitor sessions table
     `CREATE TABLE IF NOT EXISTS visitor_sessions (
       id VARCHAR(255) PRIMARY KEY,
       calculation_count INT NOT NULL DEFAULT 0,
@@ -139,7 +230,6 @@ async function createTables() {
       last_activity DATETIME NOT NULL
     )`,
 
-    // Visitor calculations table
     `CREATE TABLE IF NOT EXISTS visitor_calculations (
       id VARCHAR(255) PRIMARY KEY,
       visitor_id VARCHAR(255) NOT NULL,
@@ -150,7 +240,6 @@ async function createTables() {
       timestamp DATETIME NOT NULL
     )`,
 
-    // System logs table
     `CREATE TABLE IF NOT EXISTS system_logs (
       id VARCHAR(255) PRIMARY KEY,
       type VARCHAR(255) NOT NULL,
@@ -159,7 +248,6 @@ async function createTables() {
       user VARCHAR(255) NOT NULL
     )`,
 
-    // Settings table
     `CREATE TABLE IF NOT EXISTS settings (
       \`key\` VARCHAR(255) PRIMARY KEY,
       value TEXT NOT NULL,
@@ -189,7 +277,7 @@ async function insertDefaultAdmin() {
       'admin-1',
       'dolevb@cgwheels.com',
       'Dolev B',
-      'Do123456$', // In production, hash this password
+      'Do123456$',
       'admin',
       'approved',
       'metric',
@@ -246,8 +334,8 @@ export function getDatabase() {
   return connection;
 }
 
-// Helper functions remain similar but adapted for MySQL
-export function dbUserToUser(dbUser: any): User {
+// Helper functions
+export function dbUserToUser(dbUser: DbUser): User {
   return {
     id: dbUser.id,
     email: dbUser.email,
@@ -255,9 +343,9 @@ export function dbUserToUser(dbUser: any): User {
     role: dbUser.role,
     status: dbUser.status,
     unitPreference: dbUser.unit_preference,
-    themePreference: dbUser.theme_preference,
-    colorblindMode: dbUser.colorblind_mode,
-    fontSize: dbUser.font_size,
+    themePreference: dbUser.theme_preference as any,
+    colorblindMode: dbUser.colorblind_mode as any,
+    fontSize: dbUser.font_size as any,
     company: dbUser.company,
     position: dbUser.position,
     country: dbUser.country,
@@ -267,4 +355,205 @@ export function dbUserToUser(dbUser: any): User {
   };
 }
 
-// Add other helper functions as needed...
+export function userToDbUser(user: User, password?: string): DbUser {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    password: password || '',
+    role: user.role,
+    status: user.status,
+    unit_preference: user.unitPreference,
+    theme_preference: user.themePreference,
+    colorblind_mode: user.colorblindMode,
+    font_size: user.fontSize,
+    company: user.company,
+    position: user.position,
+    country: user.country,
+    profile_image: user.profileImage || undefined,
+    created_at: user.createdAt.toISOString(),
+    last_login: user.lastLogin?.toISOString()
+  };
+}
+
+export function dbAccessRequestToAccessRequest(dbRequest: DbAccessRequest): AccessRequest {
+  return {
+    id: dbRequest.id,
+    email: dbRequest.email,
+    name: dbRequest.name,
+    password: dbRequest.password,
+    company: dbRequest.company,
+    position: dbRequest.position,
+    country: dbRequest.country,
+    preferredUnits: dbRequest.preferred_units,
+    role: dbRequest.role,
+    status: dbRequest.status,
+    createdAt: new Date(dbRequest.created_at),
+    requestDate: new Date(dbRequest.request_date)
+  };
+}
+
+export function dbCalculatorToCalculator(dbCalc: DbCalculator): Calculator {
+  let categories: string[] = [];
+  let inputs: any[] = [];
+  
+  try {
+    categories = typeof dbCalc.categories === 'string' 
+      ? JSON.parse(dbCalc.categories) 
+      : dbCalc.categories;
+  } catch (error) {
+    console.error('Failed to parse categories:', error);
+    categories = [];
+  }
+  
+  try {
+    inputs = typeof dbCalc.inputs === 'string' 
+      ? JSON.parse(dbCalc.inputs) 
+      : dbCalc.inputs;
+  } catch (error) {
+    console.error('Failed to parse inputs:', error);
+    inputs = [];
+  }
+  
+  const defaultCalc = defaultCalculators.find(calc => calc.id === dbCalc.id);
+  
+  return {
+    id: dbCalc.id,
+    name: dbCalc.name,
+    shortName: dbCalc.short_name,
+    description: dbCalc.description || '',
+    categories,
+    inputs,
+    calculate: defaultCalc?.calculate || (() => ({ 
+      label: 'Result', 
+      value: null, 
+      unit: { metric: '', imperial: '' } 
+    }))
+  };
+}
+
+export function calculatorToDbCalculator(calc: Omit<Calculator, 'calculate'>, formula: any): DbCalculator {
+  return {
+    id: calc.id,
+    name: calc.name,
+    short_name: calc.shortName,
+    description: calc.description || '',
+    categories: JSON.stringify(calc.categories || []),
+    inputs: JSON.stringify(calc.inputs || []),
+    formula: JSON.stringify(formula || { type: 'function', value: 'calculate' }),
+    result_unit_metric: '',
+    result_unit_imperial: '',
+    enabled: true,
+    usage_count: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+}
+
+export function dbSavedCalculationToSavedCalculation(dbCalc: DbSavedCalculation): SavedCalculation {
+  let inputs: any = {};
+  let result: any = {};
+  
+  try {
+    inputs = typeof dbCalc.inputs === 'string' ? JSON.parse(dbCalc.inputs) : dbCalc.inputs;
+  } catch (error) {
+    console.error('Failed to parse inputs:', error);
+    inputs = {};
+  }
+  
+  try {
+    result = typeof dbCalc.result === 'string' ? JSON.parse(dbCalc.result) : dbCalc.result;
+  } catch (error) {
+    console.error('Failed to parse result:', error);
+    result = {};
+  }
+  
+  return {
+    id: dbCalc.id,
+    calculatorId: dbCalc.calculator_id,
+    calculatorName: dbCalc.calculator_name,
+    calculatorShortName: dbCalc.calculator_short_name,
+    inputs,
+    result,
+    unitSystem: dbCalc.unit_system as UnitSystem,
+    notes: dbCalc.notes,
+    savedAt: new Date(dbCalc.created_at)
+  };
+}
+
+export function savedCalculationToDbSavedCalculation(calc: SavedCalculation, userId: string): DbSavedCalculation {
+  return {
+    id: calc.id,
+    user_id: userId,
+    calculator_id: calc.calculatorId,
+    calculator_name: calc.calculatorName,
+    calculator_short_name: calc.calculatorShortName,
+    inputs: JSON.stringify(calc.inputs),
+    result: JSON.stringify(calc.result),
+    unit_system: calc.unitSystem,
+    notes: calc.notes,
+    created_at: calc.savedAt.toISOString()
+  };
+}
+
+export function dbNotificationToNotification(dbNotification: DbNotification) {
+  return {
+    id: dbNotification.id,
+    title: dbNotification.title,
+    message: dbNotification.message,
+    type: dbNotification.type as 'info' | 'warning' | 'error' | 'success',
+    read: Boolean(dbNotification.read),
+    createdAt: new Date(dbNotification.created_at)
+  };
+}
+
+export function dbUserSettingsToUserSettings(dbSettings: DbUserSettings) {
+  return {
+    userId: dbSettings.user_id,
+    unitPreference: dbSettings.unit_preference as UnitSystem,
+    themePreference: dbSettings.theme_preference as 'light' | 'dark' | 'system' | undefined,
+    colorblindMode: dbSettings.colorblind_mode as 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia' | undefined,
+    fontSize: dbSettings.font_size as 'small' | 'medium' | 'large' | 'extra-large' | undefined,
+    notificationsEnabled: Boolean(dbSettings.notifications_enabled),
+    updatedAt: new Date(dbSettings.updated_at)
+  };
+}
+
+export function dbVisitorCalculationToVisitorCalculation(dbCalc: DbVisitorCalculation) {
+  let inputs: any = {};
+  let results: any = {};
+  
+  try {
+    inputs = typeof dbCalc.inputs === 'string' ? JSON.parse(dbCalc.inputs) : dbCalc.inputs;
+  } catch (error) {
+    console.error('Failed to parse inputs:', error);
+    inputs = {};
+  }
+  
+  try {
+    results = typeof dbCalc.results === 'string' ? JSON.parse(dbCalc.results) : dbCalc.results;
+  } catch (error) {
+    console.error('Failed to parse results:', error);
+    results = {};
+  }
+  
+  return {
+    id: dbCalc.id,
+    visitorId: dbCalc.visitor_id,
+    calculatorType: dbCalc.calculator_type,
+    inputs,
+    results,
+    unitSystem: dbCalc.unit_system as UnitSystem,
+    timestamp: new Date(dbCalc.timestamp)
+  };
+}
+
+export function dbVisitorSessionToVisitorSession(dbSession: DbVisitorSession) {
+  return {
+    id: dbSession.id,
+    calculationCount: dbSession.calculation_count,
+    maxCalculations: dbSession.max_calculations,
+    createdAt: new Date(dbSession.created_at),
+    lastActivity: new Date(dbSession.last_activity)
+  };
+}
