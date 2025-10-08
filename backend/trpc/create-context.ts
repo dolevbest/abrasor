@@ -1,7 +1,7 @@
 import { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import { initDatabase, getDatabase, dbUserToUser } from "@/backend/db/mysql-schema";
+import { initDatabase, getDatabase, dbUserToUser } from "@/backend/db/mysql_schema";
 import { User } from "@/types";
 import 'dotenv/config'; // Load environment variables
 
