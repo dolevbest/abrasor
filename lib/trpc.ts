@@ -37,50 +37,24 @@ console.log("🔗 Final tRPC URL:", trpcUrl);
 export const trpcClient = trpc.createClient({
   transformer: superjson,
   links: [
-    // Use splitLink to separate query batching from mutations
-    splitLink({
-      condition: (op) => op.type === 'subscription',
-      true: httpLink({
-        url: trpcUrl,
-        headers: () => ({
-          'Content-Type': 'application/json',
-        }),
+    httpLink({  // Just use httpLink, no batching
+      url: trpcUrl,
+      headers: () => ({
+        'Content-Type': 'application/json',
       }),
-      false: splitLink({
-        condition: (op) => op.type === 'query',
-        // Batch queries
-        true: httpBatchLink({
-          url: trpcUrl,
-          headers: () => ({
+      fetch(url, opts) {
+        console.log("🌐 Request to:", url);
+        console.log("📦 Method:", opts?.method);
+        console.log("📦 Body:", opts?.body);
+        
+        return fetch(url, {
+          ...opts,
+          headers: {
+            ...opts?.headers,
             'Content-Type': 'application/json',
-          }),
-        }),
-        // Don't batch mutations - send individually
-        false: httpLink({
-          url: trpcUrl,
-          headers: () => ({
-            'Content-Type': 'application/json',
-          }),
-          fetch(url, opts) {
-            console.log("🌐 Making mutation request to:", url);
-            console.log("📦 Request body:", opts?.body);
-            
-            return fetch(url, {
-              ...opts,
-              headers: {
-                ...opts?.headers,
-                'Content-Type': 'application/json',
-              },
-            }).then(response => {
-              console.log("📥 Response status:", response.status);
-              return response;
-            }).catch(error => {
-              console.error("❌ Mutation fetch error:", error);
-              throw error;
-            });
           },
-        }),
-      }),
+        });
+      },
     }),
   ],
 });
