@@ -1,13 +1,12 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { createTRPCReact } from "@trpc/react-query";
-import { httpBatchLink } from "@trpc/client";  // Changed from httpLink
+import { httpBatchLink, httpLink, splitLink } from "@trpc/client";
 import type { AppRouter } from "@/backend/trpc/app-router";
 import superjson from "superjson";
 
 export const trpc = createTRPCReact<AppRouter>();
 
-// Get API base URL with better environment handling
 const getApiBase = () => {
   const envBase = (Constants?.expoConfig?.extra as any)?.EXPO_PUBLIC_API_BASE 
     || process.env.EXPO_PUBLIC_API_BASE;
@@ -38,36 +37,50 @@ console.log("🔗 Final tRPC URL:", trpcUrl);
 export const trpcClient = trpc.createClient({
   transformer: superjson,
   links: [
-    httpBatchLink({  // Changed to httpBatchLink
-      url: trpcUrl,
-      headers: () => ({
-        'Content-Type': 'application/json',
+    // Use splitLink to separate query batching from mutations
+    splitLink({
+      condition: (op) => op.type === 'subscription',
+      true: httpLink({
+        url: trpcUrl,
+        headers: () => ({
+          'Content-Type': 'application/json',
+        }),
       }),
-      // Add fetch with better error handling
-      fetch(url, opts) {
-        console.log("🌐 Making tRPC request to:", url);
-        console.log("📦 Request options:", JSON.stringify(opts, null, 2));
-        
-        // Log the body being sent
-        if (opts?.body) {
-          console.log("📤 Request body:", opts.body);
-        }
-        
-        return fetch(url, { 
-          ...opts,
-          headers: {
-            ...opts?.headers,
+      false: splitLink({
+        condition: (op) => op.type === 'query',
+        // Batch queries
+        true: httpBatchLink({
+          url: trpcUrl,
+          headers: () => ({
             'Content-Type': 'application/json',
+          }),
+        }),
+        // Don't batch mutations - send individually
+        false: httpLink({
+          url: trpcUrl,
+          headers: () => ({
+            'Content-Type': 'application/json',
+          }),
+          fetch(url, opts) {
+            console.log("🌐 Making mutation request to:", url);
+            console.log("📦 Request body:", opts?.body);
+            
+            return fetch(url, {
+              ...opts,
+              headers: {
+                ...opts?.headers,
+                'Content-Type': 'application/json',
+              },
+            }).then(response => {
+              console.log("📥 Response status:", response.status);
+              return response;
+            }).catch(error => {
+              console.error("❌ Mutation fetch error:", error);
+              throw error;
+            });
           },
-        }).then(response => {
-          console.log("📥 Response status:", response.status);
-          return response;
-        }).catch(error => {
-          console.error("❌ tRPC fetch error:", error);
-          console.error("🔗 Failed URL:", url);
-          throw error;
-        });
-      },
+        }),
+      }),
     }),
   ],
 });
